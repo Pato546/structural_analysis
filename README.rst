@@ -13,7 +13,7 @@ Structural Analysis
 
 .. note:: 
 
-    There is only one only one solver which is working as of this commit and the project is not 
+    There is only one solver which is working as of this commit and the project is not 
     ready to be used.
 
 .. attention:: 
