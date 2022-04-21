@@ -1,4 +1,3 @@
-from .position import Position
 from .load import PointLoad, UDL
 from .node import Node
 from .span import Span

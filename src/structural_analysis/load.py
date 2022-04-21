@@ -1,14 +1,14 @@
 import math
-from . import Position
 
 
 class PointLoad:
     def __init__(
-        self, magnitude: float, position: Position, angle_of_inclination: float = 90
+        self, magnitude: float, x: float, y: float, angle_of_inclination: float = 90
     ) -> None:
         self._magnitude = magnitude
+        self._x = x
+        self._y = y
         self._angle_of_inclination = angle_of_inclination
-        self._position = position
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(magnitude={self.magnitude}, {repr(self.position)})"
@@ -34,8 +34,12 @@ class PointLoad:
         return self._magnitude
 
     @property
-    def position(self) -> Position:
-        return self._position
+    def x(self) -> float:
+        return self._x
+
+    @property
+    def y(self) -> float:
+        return self._y
 
     def horizontal_force(self) -> float:
         load_magnitude: float = self.magnitude * self._horizontal_component
@@ -51,10 +55,12 @@ class PointLoad:
 
 
 class UDL:
-    def __init__(self, magnitude: float, start: Position, end: Position):
+    def __init__(self, magnitude: float, x1: float, y1: float, x2: float, y2: float):
         self._magnitude = magnitude
-        self._start = start
-        self._end = end
+        self._x1 = x1
+        self._y1 = y1
+        self._x2 = x2
+        self._y2 = y2
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(magnitude={self.magnitude}"
@@ -67,12 +73,20 @@ class UDL:
         return self._magnitude
 
     @property
-    def start(self) -> Position:
-        return self._start
+    def x1(self) -> float:
+        return self._x1
 
     @property
-    def end(self) -> Position:
-        return self._end
+    def y1(self) -> float:
+        return self._y1
+
+    @property
+    def x2(self) -> float:
+        return self._x2
+
+    @property
+    def y2(self) -> float:
+        return self._y2
 
 
 if __name__ == "__main__":
