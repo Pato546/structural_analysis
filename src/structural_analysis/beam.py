@@ -1,6 +1,8 @@
 from typing import Iterable
 import math
 
+from load import PointLoad, UniformlyDistributedLoad, PointMoment
+
 
 class FixedSupport:
     def __init__(self, x: float, y: float):
@@ -77,25 +79,70 @@ def support(
 
 
 class Beam:
+    class beam_iterator:
+        def __init__(self, obj):
+            self.head = obj.head
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            try:
+                return self.head
+            except AttributeError:
+                raise StopIteration
+            finally:
+                try:
+                    self.head = self.head._next
+                except AttributeError:
+                    raise StopIteration
+
     class Node:
-        def __init__(self, name: str, x: float, y: float) -> None:
+        def __init__(
+                self,
+                name: str,
+                x: float,
+                y: float,
+                next_,
+                *,
+                point_loads: tuple or None,
+                distributed_loads: tuple or None,
+                point_moments: tuple or None,
+                supports: tuple or None,
+        ) -> None:
             self.name = name
+            self._next = next_
+            self.point_loads = point_loads
+            self.distributed_loads = distributed_loads
+            self.point_moments = point_moments
+            self.supports = supports
 
             if x < 0:
-                raise ValueError('x cannot be negative')
+                raise ValueError("x cannot be negative")
             self._x = x
 
             if y < 0:
-                raise ValueError('y cannot be negative')
+                raise ValueError("y cannot be negative")
             self._y = y
 
-            self.point_loads = []
-            self.distributed_loads = []
-            self.point_moments = []
-            self.supports = []
+            if point_loads:
+                for point_load in point_loads:
+                    point_load.x = self.x
+                    point_load.y = self.y
+
+            if distributed_loads:
+                for udl in distributed_loads:
+                    udl.start = self.x
+
+            if point_moments:
+                for point_moment in point_moments:
+                    point_moment.x = self.x
+                    point_moment.y = self.y
 
         def __repr__(self) -> str:
-            return f'{self.__class__.__name__}({self.name}, x={self._x}, y={self._y})'
+            return (
+                f"{self.__class__.__name__}(name={self.name}, x={self._x}, y={self._y})"
+            )
 
         @property
         def x(self):
@@ -104,7 +151,7 @@ class Beam:
         @x.setter
         def x(self, val: float or int) -> None:
             if val < 0:
-                raise ValueError('x cannot be negative')
+                raise ValueError("x cannot be negative")
             self._x = val
 
         @property
@@ -114,70 +161,65 @@ class Beam:
         @y.setter
         def y(self, val: float or int):
             if val < 0:
-                raise ValueError('y cannot be negative')
+                raise ValueError("y cannot be negative")
             self._y = val
 
-        def add_point_load(self, pl):
-            self.point_loads.append(pl)
+    def __init__(self, length: float, e: float, i=None, cross_section=None) -> None:
+        self.L = length
+        self.modulus_of_elasticity = e
+        self.head = None
+        self.tail = None
+        self._size: int = 0
 
-        def add_distributed_loads(self, dl):
-            self.distributed_loads.append(dl)
+        if not i and cross_section:
+            raise ValueError("Must specify i or cross-section of beam")
 
-        def add_point_moments(self, pm):
-            self.point_moments.append(pm)
+        if i:
+            self.moment_of_inertia = i
+        if cross_section:
+            self.cross_section = cross_section
 
-        def support_support(self, s):
-            self.supports.append(s)
+    def __len__(self) -> int:
+        return self._size
 
-        class Span:
-            # TODO check loads again
-            def __init__(self, node1, node2, loads):
-                self._node1 = node1
-                self._node2 = node2
-                self._loads = loads
+    def __iter__(self):
+        return self.beam_iterator(self)
 
-            def __len__(self) -> int:
-                return int(
-                    math.sqrt(
-                        (self.node1.x - self.node2.x) ** 2 + (self.node1.y - self.node2.y) ** 2
-                    )
-                )
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(length={self.L})"
 
-            @property
-            def node1(self):
-                return self._node1
+    @property
+    def is_empty(self) -> int:
+        return self._size == 0
 
-            @property
-            def node2(self):
-                return self._node2
+    def append_node(
+            self,
+            name: str,
+            x: float,
+            y: float,
+            *,
+            point_loads: tuple or None = None,
+            distributed_loads: tuple or None = None,
+            point_moments: tuple or None = None,
+            supports: tuple or None = None,
+    ) -> None:
+        node = self.Node(
+            name=name,
+            x=x,
+            y=y,
+            next_=None,
+            point_loads=point_loads,
+            distributed_loads=distributed_loads,
+            point_moments=point_moments,
+            supports=supports,
+        )
+        if self.is_empty:
+            self.head = node
+        else:
+            self.tail._next = node
 
-            @property
-            def is_overhang(self) -> bool:
-                return self._node2 is None
-
-            def area(self) -> float:
-                pass
-
-            def span_rigidity(self):
-                pass
-
-            def type_of_loads(self):
-                pass
-
-            def bending_moment_diagram(self):
-                pass
-
-            def shear_force_diagram(self):
-                pass
-
-    def __init__(self, l: float, e: float, i=None, cross_section=None) -> None:
-        self.L = l
-        self.e = e
-
-        # TODO work on i and cross_section
-
-    def add_node(self, n: Node) -> None:
-        pass
+        self.tail = node
+        self._size += 1
 
     def check_degree_of_ext_indeterminacy(self) -> int:
         pass
@@ -192,15 +234,30 @@ class Beam:
         pass
 
     def get_point_loads(self) -> Iterable:
-        pass
+        return [
+            point_load
+            for node in self
+            if node.point_loads
+            for point_load in node.point_loads
+        ]
 
     def get_distributed_loads(self) -> Iterable:
-        pass
+        return [
+            udl
+            for node in self
+            if node.distributed_loads
+            for udl in node.distributed_loads
+        ]
 
     def get_point_moments(self) -> Iterable:
-        pass
+        return [
+            point_moment
+            for node in self
+            if node.point_moments
+            for point_moment in node.point_moments
+        ]
 
-    def get_eqns_on_condition(self):
+    def get_eqn_on_condition(self):
         pass
 
     def get_total_support_reactions(self) -> int:
@@ -218,16 +275,20 @@ class Beam:
         # TODO equilibrium equations
         pass
 
-    def get_total_eqns_for_structure(self) -> int:
+    def get_total_eqn_for_structure(self) -> int:
         # 3 * number of reactions
         pass
 
 
 if __name__ == "__main__":
-    f1 = support(0, rx=True, ry=True, rm=True)
-    print(f1)
-    h1 = support(4, rx=True, ry=True)
-    print(h1)
-    r1 = support(8, rx=True)
-    print(f"Vy={r1.is_rxn_vertical()}")
-    print(f"Vx={r1.is_rxn_horizontal()}")
+    pl = (PointLoad(-40), PointLoad(-20))
+    ul = (UniformlyDistributedLoad(-40, 7),)
+    pm = (PointMoment(-90),)
+    b = Beam(length=12, e=0, i=0)
+    b.append_node("A", 0, 0, point_loads=pl)
+    b.append_node("B", 4, 0, point_loads=pl, point_moments=pm)
+    b.append_node('C', 0, 0, distributed_loads=ul)
+    print(len(b))
+    print(b.get_point_loads())
+    print(b.get_distributed_loads())
+    print(b.get_point_moments())
