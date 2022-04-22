@@ -1,5 +1,4 @@
 from . import PointLoad
-from . import RollerSupport, HingeSupport, FixedSupport
 
 
 class StaticallyDeterminateSolver:
@@ -7,7 +6,7 @@ class StaticallyDeterminateSolver:
         self.support_a = support_a
         self.support_b = support_b
         self.point_loads = (load for load in loads if str(load) == "PointLoad")
-        self.udls = (load for load in loads if str(load) == "UDL")
+        self.udls = (load for load in loads if str(load) == "UniformlyDistributedLoad")
 
     def _reactions_solver_for_point_loads(self) -> tuple[float, float, float]:
         support_a_x = self.support_a.x  # The x coordinate of the first support
