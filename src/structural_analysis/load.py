@@ -1,17 +1,25 @@
 import math
+import functools
+
+
+# TODO Write the codes for comparing loads using total ordering
 
 
 class PointLoad:
     def __init__(
-        self, magnitude: float, x: float, y: float, angle_of_inclination: float = 90
+            self,
+            magnitude: float,
+            x: float or None = None,
+            y: float or None = None,
+            angle_of_inclination: float = 90.0,
     ) -> None:
         self._magnitude = magnitude
         self._x = x
         self._y = y
         self._angle_of_inclination = angle_of_inclination
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(magnitude={self.magnitude}, {repr(self.position)})"
+    def __repr__(self):
+        return f"{self.__class__.__name__}(magnitude={self.magnitude}, x={self.x}, y={self.y})"
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -37,9 +45,17 @@ class PointLoad:
     def x(self) -> float:
         return self._x
 
+    @x.setter
+    def x(self, val):
+        self._x = val
+
     @property
     def y(self) -> float:
         return self._y
+
+    @y.setter
+    def y(self, val):
+        self._y = val
 
     def horizontal_force(self) -> float:
         load_magnitude: float = self.magnitude * self._horizontal_component
@@ -54,42 +70,70 @@ class PointLoad:
         return self.magnitude * self._vertical_component
 
 
-class UDL:
-    def __init__(self, magnitude: float, x1: float, y1: float, x2: float, y2: float):
+class UniformlyDistributedLoad:
+    def __init__(self, magnitude: float, length: float, start: float or None = None):
         self._magnitude = magnitude
-        self._x1 = x1
-        self._y1 = y1
-        self._x2 = x2
-        self._y2 = y2
+        self._length = length
+        self._start = start
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(magnitude={self.magnitude}"
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.magnitude})"
 
     def __str__(self) -> str:
         return self.__class__.__name__
+
+    def __len__(self):
+        return self._length
 
     @property
     def magnitude(self) -> float:
         return self._magnitude
 
     @property
-    def x1(self) -> float:
-        return self._x1
+    def start(self) -> float:
+        return self.start
+
+    @start.setter
+    def start(self, val):
+        self._start = val
+
+    def centroid_of_udl(self) -> float:
+        return len(self) / 2
+
+    def total_force_of_udl(self) -> float:
+        return self.magnitude * len(self)
+
+
+class PointMoment:
+    def __init__(self, magnitude: float, x: float or None = None, y: float or None = None):
+        self._magnitude = magnitude
+        self._x = x
+        self._y = y
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(magnitude={self.magnitude}, x={self.x}, y={self.y})"
 
     @property
-    def y1(self) -> float:
-        return self._y1
+    def magnitude(self):
+        return self._magnitude
 
     @property
-    def x2(self) -> float:
-        return self._x2
+    def x(self):
+        return self._x
+
+    @x.setter
+    def x(self, val):
+        self._x = val
 
     @property
-    def y2(self) -> float:
-        return self._y2
+    def y(self):
+        return self._y
+
+    @y.setter
+    def y(self, val):
+        self._y = val
 
 
 if __name__ == "__main__":
-    a = PointLoad(100, Position(0, 4))
-    b = UDL(100, Position(3, 4), Position(4, 4))
-    print(str(b))
+    pm = PointMoment(-40, 9, 0)
+    print(pm)
