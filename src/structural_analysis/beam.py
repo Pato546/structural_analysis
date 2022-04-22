@@ -1,5 +1,5 @@
 from typing import Iterable
-import math
+# import math
 
 from load import PointLoad, UniformlyDistributedLoad, PointMoment
 
@@ -79,6 +79,14 @@ def support(
 
 
 class Beam:
+    # Material Properties
+    MODULUS_OF_ELASTICITY = 20e-07
+    THERMAL_EXPANSION_ALPHA = 1.2e-05
+
+    # Geometric Properties
+    CROSS_SECTIONAL_AREA = 1.000e-02
+    MOMENT_OF_INERTIA = 1.000e-04
+
     class beam_iterator:
         def __init__(self, obj):
             self.head = obj.head
@@ -93,7 +101,7 @@ class Beam:
                 raise StopIteration
             finally:
                 try:
-                    self.head = self.head._next
+                    self.head = self.head.next_
                 except AttributeError:
                     raise StopIteration
 
@@ -111,7 +119,7 @@ class Beam:
                 supports: tuple or None,
         ) -> None:
             self.name = name
-            self._next = next_
+            self.next_ = next_
             self.point_loads = point_loads
             self.distributed_loads = distributed_loads
             self.point_moments = point_moments
@@ -164,20 +172,39 @@ class Beam:
                 raise ValueError("y cannot be negative")
             self._y = val
 
-    def __init__(self, length: float, e: float, i=None, cross_section=None) -> None:
+    def __init__(
+            self,
+            length: float,
+            e: float or None = None,
+            alpha: float or None = None,
+            i: float or None = None,
+            cross_section: float or None = None,
+    ) -> None:
         self.L = length
-        self.modulus_of_elasticity = e
+
+        if e is None:
+            self.modulus_of_elasticity = self.MODULUS_OF_ELASTICITY
+        else:
+            self.modulus_of_elasticity = e
+
+        if alpha is None:
+            self.thermal_expansion_alpha = self.THERMAL_EXPANSION_ALPHA
+        else:
+            self.thermal_expansion_alpha = alpha
+
+        if i is None:
+            self.moment_of_inertia = self.MOMENT_OF_INERTIA
+        else:
+            self.moment_of_inertia = i
+
+        if cross_section is None:
+            self.cross_sectional_area = self.CROSS_SECTIONAL_AREA
+        else:
+            self.cross_sectional_area = cross_section
+
         self.head = None
         self.tail = None
         self._size: int = 0
-
-        if not i and cross_section:
-            raise ValueError("Must specify i or cross-section of beam")
-
-        if i:
-            self.moment_of_inertia = i
-        if cross_section:
-            self.cross_section = cross_section
 
     def __len__(self) -> int:
         return self._size
@@ -234,28 +261,28 @@ class Beam:
         pass
 
     def get_point_loads(self) -> Iterable:
-        return [
+        return (
             point_load
             for node in self
             if node.point_loads
             for point_load in node.point_loads
-        ]
+        )
 
     def get_distributed_loads(self) -> Iterable:
-        return [
+        return (
             udl
             for node in self
             if node.distributed_loads
             for udl in node.distributed_loads
-        ]
+        )
 
     def get_point_moments(self) -> Iterable:
-        return [
+        return (
             point_moment
             for node in self
             if node.point_moments
             for point_moment in node.point_moments
-        ]
+        )
 
     def get_eqn_on_condition(self):
         pass
@@ -287,7 +314,7 @@ if __name__ == "__main__":
     b = Beam(length=12, e=0, i=0)
     b.append_node("A", 0, 0, point_loads=pl)
     b.append_node("B", 4, 0, point_loads=pl, point_moments=pm)
-    b.append_node('C', 0, 0, distributed_loads=ul)
+    b.append_node("C", 0, 0, distributed_loads=ul)
     print(len(b))
     print(b.get_point_loads())
     print(b.get_distributed_loads())
