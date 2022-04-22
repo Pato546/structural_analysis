@@ -2,9 +2,7 @@ import math
 import functools
 
 
-# TODO Write the codes for comparing loads using total ordering
-
-
+@functools.total_ordering
 class PointLoad:
     def __init__(
             self,
@@ -14,15 +12,33 @@ class PointLoad:
             angle_of_inclination: float = 90.0,
     ) -> None:
         self._magnitude = magnitude
+        self._angle_of_inclination = angle_of_inclination
+
+        if x:
+            if x < 0:
+                raise ValueError("x cannot be less than zero")
+        if y:
+            if y < 0:
+                raise ValueError("y cannot be less than zero")
+
         self._x = x
         self._y = y
-        self._angle_of_inclination = angle_of_inclination
 
     def __repr__(self):
         return f"{self.__class__.__name__}(magnitude={self.magnitude}, x={self.x}, y={self.y})"
 
     def __str__(self) -> str:
         return self.__class__.__name__
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return abs(self.magnitude) == abs(other.magnitude)
+        return NotImplemented
+
+    def __lt__(self, other):
+        if isinstance(other, self.__class__):
+            return abs(self.magnitude) < abs(other.magnitude)
+        return NotImplemented
 
     @property
     def _angle(self) -> float:
@@ -47,6 +63,8 @@ class PointLoad:
 
     @x.setter
     def x(self, val):
+        if val < 0:
+            raise ValueError("val cannot be less than zero")
         self._x = val
 
     @property
@@ -55,6 +73,8 @@ class PointLoad:
 
     @y.setter
     def y(self, val):
+        if val < 0:
+            raise ValueError("val cannot be less than zero")
         self._y = val
 
     def horizontal_force(self) -> float:
@@ -70,10 +90,19 @@ class PointLoad:
         return self.magnitude * self._vertical_component
 
 
+@functools.total_ordering
 class UniformlyDistributedLoad:
     def __init__(self, magnitude: float, length: float, start: float or None = None):
         self._magnitude = magnitude
+
+        if length < 0:
+            raise ValueError("length cannot be less than zero")
         self._length = length
+
+        if start:
+            if start < 0:
+                raise ValueError("start cannot be less than zero")
+
         self._start = start
 
     def __repr__(self):
@@ -85,6 +114,16 @@ class UniformlyDistributedLoad:
     def __len__(self):
         return self._length
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return abs(self.total_force_of_udl()) == abs(other.total_force_of_udl())
+        return NotImplemented
+
+    def __lt__(self, other):
+        if isinstance(other, self.__class__):
+            return abs(self.total_force_of_udl()) < abs(other.total_force_of_udl())
+        return NotImplemented
+
     @property
     def magnitude(self) -> float:
         return self._magnitude
@@ -95,6 +134,8 @@ class UniformlyDistributedLoad:
 
     @start.setter
     def start(self, val):
+        if val < 0:
+            raise ValueError("val cannot be less than zero")
         self._start = val
 
     def centroid_of_udl(self) -> float:
@@ -104,14 +145,38 @@ class UniformlyDistributedLoad:
         return self.magnitude * len(self)
 
 
+@functools.total_ordering
 class PointMoment:
-    def __init__(self, magnitude: float, x: float or None = None, y: float or None = None):
+    def __init__(
+            self, magnitude: float, x: float or None = None, y: float or None = None
+    ):
         self._magnitude = magnitude
+
+        if x:
+            if x < 0:
+                raise ValueError("x cannot be less than zero")
+        if y:
+            if y < 0:
+                raise ValueError("y cannot be less than zero")
+
         self._x = x
         self._y = y
 
     def __repr__(self):
         return f"{self.__class__.__name__}(magnitude={self.magnitude}, x={self.x}, y={self.y})"
+
+    def __str__(self):
+        return self.__class__.__name__
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return abs(self.magnitude) == abs(other.magnitude)
+        return NotImplemented
+
+    def __lt__(self, other):
+        if isinstance(other, self.__class__):
+            return abs(self.magnitude) < abs(other.magnitude)
+        return NotImplemented
 
     @property
     def magnitude(self):
@@ -123,6 +188,8 @@ class PointMoment:
 
     @x.setter
     def x(self, val):
+        if val < 0:
+            raise ValueError("val cannot be less than zero")
         self._x = val
 
     @property
@@ -131,9 +198,18 @@ class PointMoment:
 
     @y.setter
     def y(self, val):
+        if val < 0:
+            raise ValueError("val cannot be less than zero")
         self._y = val
 
 
 if __name__ == "__main__":
-    pm = PointMoment(-40, 9, 0)
-    print(pm)
+    # pl1 = PointLoad(-90)
+    # pl2 = PointLoad(-90)
+    # print(pl1 >= pl2)
+    # m1 = UniformlyDistributedLoad(-50, 4)
+    # m2 = UniformlyDistributedLoad(100, 2)
+    # print(m1 > m2)
+    pm1 = PointMoment(-40)
+    pm2 = PointMoment(-50)
+    print(pm1 > pm2)
