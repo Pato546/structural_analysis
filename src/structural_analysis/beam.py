@@ -140,6 +140,10 @@ def create_support(
     raise SupportCreationError("Not enough information to create a valid support")
 
 
+def create_supports(restraints: list[dict]):
+    return [create_support(**r) for r in restraints]
+
+
 class Beam:
     # total number of equilibrium equations
     NUMBER_OF_EQUILIBRIUM_EQUATIONS = 3
@@ -290,7 +294,7 @@ class Beam:
             self,
             name: str,
             x: float,
-            y: float,
+            y: float = 0.0,
             *,
             point_load: PointLoad or None = None,
             distributed_load: UniformlyDistributedLoad or None = None,
