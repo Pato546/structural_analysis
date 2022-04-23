@@ -8,3 +8,7 @@ class StaticallyIndeterminateExternally(Exception):
 
 class GeometricallyUnstableExternally(Exception):
     pass
+
+
+class SupportCreationError(Exception):
+    pass

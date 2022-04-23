@@ -1,12 +1,31 @@
-from . import PointLoad
+from . import Beam
+from . import StaticallyUnstableExternally, StaticallyIndeterminateExternally
 
 
 class StaticallyDeterminateSolver:
-    def __init__(self, loads: list, support_a, support_b):
-        self.support_a = support_a
-        self.support_b = support_b
-        self.point_loads = (load for load in loads if str(load) == "PointLoad")
-        self.udls = (load for load in loads if str(load) == "UniformlyDistributedLoad")
+    def __init__(self, beam: Beam):
+        self.beam = beam
+        self.beam_type = self.beam.classify_beam()
+
+        if self.beam_type == 'determinate':
+            pass
+        else:
+            if self.beam_type == 'unstable':
+                raise StaticallyUnstableExternally('Structure is unstable')
+            else:
+                raise StaticallyIndeterminateExternally('Structure is indeterminate')
+
+        self.beam_information: dict = self.beam.get_beam_information()
+        self.supports = tuple(self.beam_information['supports'])
+
+        if len(self.supports) > 1:
+            self.support_a = self.supports[0]
+            self.support_b = self.supports[1]
+        elif len(self.supports) == 1:
+            raise NotImplementedError('Solver does not work for built-in beams')
+
+        self.point_loads = self.beam_information['point_loads']
+        self.distributed_loads = self.beam_information['distributed_loads']
 
     def _reactions_solver_for_point_loads(self) -> tuple[float, float, float]:
         support_a_x = self.support_a.x  # The x coordinate of the first support
@@ -40,14 +59,12 @@ class StaticallyDeterminateSolver:
         summation_of_vertical_forces = 0
         summation_of_moments = 0
 
-        for load in self.udls:
-            start_of_udl = load.x1
-            end_of_udl = load.x2
-            length_of_udl = end_of_udl - start_of_udl
-            centroid_of_udl = length_of_udl / 2
+        for load in self.distributed_loads:
+            start_of_udl = load.start
+            centroid_of_udl = load.centroid_of_udl()
             moment_arm_of_udl = centroid_of_udl + (start_of_udl - support_a_x)
 
-            total_force_of_udl = -1 * load.magnitude * length_of_udl
+            total_force_of_udl = -1 * load.total_force_of_udl()
 
             summation_of_vertical_forces += total_force_of_udl
             summation_of_moments += total_force_of_udl * moment_arm_of_udl

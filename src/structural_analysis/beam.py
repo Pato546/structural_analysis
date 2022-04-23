@@ -1,11 +1,15 @@
-from typing import Iterable
+from typing import Iterable, Any
+
 # import math
 
-from load import PointLoad, UniformlyDistributedLoad, PointMoment
+from .load import PointLoad, UniformlyDistributedLoad, PointMoment
+from .beam_errors import SupportCreationError
 
 
 class FixedSupport:
-    def __init__(self, x: float, y: float):
+    NUMBER_OF_RESTRAINTS = 3
+
+    def __init__(self, x: float or None = None, y: float or None = None):
         self._x = x
         self._y = y
 
@@ -16,13 +20,31 @@ class FixedSupport:
     def x(self) -> float:
         return self._x
 
+    @x.setter
+    def x(self, val):
+        if val < 0:
+            raise ValueError("val cannot be negative")
+        self._x = val
+
     @property
     def y(self) -> float:
         return self._y
+
+    @y.setter
+    def y(self, val):
+        if val < 0:
+            raise ValueError("val cannot be negative")
+        self._y = val
+
+    @classmethod
+    def get_num_of_restraints(cls):
+        return cls.NUMBER_OF_RESTRAINTS
 
 
 class HingeSupport:
-    def __init__(self, x: float, y: float):
+    NUMBER_OF_RESTRAINTS = 2
+
+    def __init__(self, x: float or None = None, y: float or None = None):
         self._x = x
         self._y = y
 
@@ -33,13 +55,37 @@ class HingeSupport:
     def x(self) -> float:
         return self._x
 
+    @x.setter
+    def x(self, val):
+        if val < 0:
+            raise ValueError("val cannot be negative")
+        self._x = val
+
     @property
     def y(self) -> float:
         return self._y
 
+    @y.setter
+    def y(self, val):
+        if val < 0:
+            raise ValueError("val cannot be negative")
+        self._y = val
+
+    @classmethod
+    def get_num_of_restraints(cls):
+        return cls.NUMBER_OF_RESTRAINTS
+
 
 class RollerSupport:
-    def __init__(self, x: float, y: float, rx, ry):
+    NUMBER_OF_RESTRAINTS = 1
+
+    def __init__(
+            self,
+            x: float or None = None,
+            y: float or None = None,
+            rx: bool or None = None,
+            ry: bool or None = None,
+    ):
         self._x = x
         self._y = y
         self.rx = rx
@@ -52,9 +98,25 @@ class RollerSupport:
     def x(self) -> float:
         return self._x
 
+    @x.setter
+    def x(self, val):
+        if val < 0:
+            raise ValueError("val cannot be negative")
+        self._x = val
+
     @property
     def y(self) -> float:
         return self._y
+
+    @y.setter
+    def y(self, val):
+        if val < 0:
+            raise ValueError("val cannot be negative")
+        self._y = val
+
+    @classmethod
+    def get_num_of_restraints(cls):
+        return cls.NUMBER_OF_RESTRAINTS
 
     def is_rxn_horizontal(self):
         return self.rx
@@ -63,22 +125,25 @@ class RollerSupport:
         return self.ry
 
 
-def support(
-        x,
-        y: float = 0.0,
+def create_support(
         rx: bool or None = None,
         ry: bool or None = None,
         rm: bool or None = None,
 ):
     if rx and ry and rm:
-        return FixedSupport(x=x, y=y)
+        return FixedSupport()
     elif rx and ry:
-        return HingeSupport(x=x, y=y)
+        return HingeSupport()
     elif rx or ry:
-        return RollerSupport(x=x, y=y, rx=rx, ry=ry)
+        return RollerSupport(rx=rx, ry=ry)
+
+    raise SupportCreationError("Not enough information to create a valid support")
 
 
 class Beam:
+    # total number of equilibrium equations
+    NUMBER_OF_EQUILIBRIUM_EQUATIONS = 3
+
     # Material Properties
     MODULUS_OF_ELASTICITY = 20e-07
     THERMAL_EXPANSION_ALPHA = 1.2e-05
@@ -113,17 +178,17 @@ class Beam:
                 y: float,
                 next_,
                 *,
-                point_loads: tuple or None,
-                distributed_loads: tuple or None,
-                point_moments: tuple or None,
-                supports: tuple or None,
+                point_load: PointLoad or None = None,
+                distributed_load: UniformlyDistributedLoad or None = None,
+                point_moment: PointMoment or None = None,
+                support: Any or None = None,
         ) -> None:
             self.name = name
             self.next_ = next_
-            self.point_loads = point_loads
-            self.distributed_loads = distributed_loads
-            self.point_moments = point_moments
-            self.supports = supports
+            self.point_load = point_load
+            self.distributed_load = distributed_load
+            self.point_moment = point_moment
+            self.support = support
 
             if x < 0:
                 raise ValueError("x cannot be negative")
@@ -133,19 +198,20 @@ class Beam:
                 raise ValueError("y cannot be negative")
             self._y = y
 
-            if point_loads:
-                for point_load in point_loads:
-                    point_load.x = self.x
-                    point_load.y = self.y
+            if self.point_load:
+                self.point_load.x = self.x
+                self.point_load.y = self.y
 
-            if distributed_loads:
-                for udl in distributed_loads:
-                    udl.start = self.x
+            if self.distributed_load:
+                self.distributed_load.start = self.x
 
-            if point_moments:
-                for point_moment in point_moments:
-                    point_moment.x = self.x
-                    point_moment.y = self.y
+            if self.point_moment:
+                self.point_moment.x = self.x
+                self.point_moment.y = self.y
+
+            if self.support:
+                self.support.x = self.x
+                self.support.y = self.y
 
         def __repr__(self) -> str:
             return (
@@ -205,6 +271,7 @@ class Beam:
         self.head = None
         self.tail = None
         self._size: int = 0
+        self.beam_information = {}
 
     def __len__(self) -> int:
         return self._size
@@ -225,97 +292,102 @@ class Beam:
             x: float,
             y: float,
             *,
-            point_loads: tuple or None = None,
-            distributed_loads: tuple or None = None,
-            point_moments: tuple or None = None,
-            supports: tuple or None = None,
+            point_load: PointLoad or None = None,
+            distributed_load: UniformlyDistributedLoad or None = None,
+            point_moment: PointMoment or None = None,
+            support: Any or None = None,
     ) -> None:
         node = self.Node(
             name=name,
             x=x,
             y=y,
             next_=None,
-            point_loads=point_loads,
-            distributed_loads=distributed_loads,
-            point_moments=point_moments,
-            supports=supports,
+            point_load=point_load,
+            distributed_load=distributed_load,
+            point_moment=point_moment,
+            support=support,
         )
         if self.is_empty:
             self.head = node
         else:
-            self.tail._next = node
+            self.tail.next_ = node
 
         self.tail = node
         self._size += 1
-
-    def check_degree_of_ext_indeterminacy(self) -> int:
-        pass
 
     def check_geometric_stability(self) -> bool:
         pass
 
     def classify_beam(self):
-        pass
+        r = self.get_total_support_reactions()
+        eqn_on_condition = self.get_eqn_on_conditions()
+        rhs = self.NUMBER_OF_EQUILIBRIUM_EQUATIONS + eqn_on_condition
+
+        if r < rhs:
+            return 'unstable'
+        elif r == rhs:
+            return 'determinate'
+        else:
+            return 'indeterminate'
+
+    def get_beam_information(self) -> dict:
+        return {
+            "point_loads": self.get_point_loads(),
+            "distributed_loads": self.get_distributed_loads(),
+            "point_moments": self.get_point_moments(),
+            "supports": self.get_supports(),
+        }
+
+    def get_degree_of_ext_indeterminacy(self) -> int:
+        r = self.get_total_support_reactions()
+        eqn_on_condition = self.get_eqn_on_conditions()
+        rhs = self.NUMBER_OF_EQUILIBRIUM_EQUATIONS + eqn_on_condition
+
+        return r - rhs
 
     def get_supports(self) -> Iterable:
-        pass
+        return (node.support for node in self if node.support)
 
     def get_point_loads(self) -> Iterable:
-        return (
-            point_load
-            for node in self
-            if node.point_loads
-            for point_load in node.point_loads
-        )
+        return (node.point_load for node in self if node.point_load)
 
     def get_distributed_loads(self) -> Iterable:
-        return (
-            udl
-            for node in self
-            if node.distributed_loads
-            for udl in node.distributed_loads
-        )
+        return (node.distributed_load for node in self if node.distributed_load)
 
     def get_point_moments(self) -> Iterable:
-        return (
-            point_moment
-            for node in self
-            if node.point_moments
-            for point_moment in node.point_moments
-        )
+        return (node.point_moment for node in self if node.point_moment)
 
-    def get_eqn_on_condition(self):
-        pass
+    def get_eqn_on_conditions(self) -> int:
+        equations = 0
+        supports = self.get_supports()
+        for support in supports:
+            if str(support) == "InternalHinge":
+                equations += 1
+            elif str(support) == "InternalRoller":
+                equations += 2
+
+        return equations
 
     def get_total_support_reactions(self) -> int:
-        pass
-
-    def get_total_internal_forces(self) -> int:
-        pass
-
-    def get_total_unknowns(self) -> int:
-        pass
-
-    def get_rigid_members(self) -> int:
-        # TODO write a decorator satisfy_eqn
-        # TODO to whether rigid members satisfy the
-        # TODO equilibrium equations
-        pass
-
-    def get_total_eqn_for_structure(self) -> int:
-        # 3 * number of reactions
-        pass
+        support_rxn = 0
+        supports = self.get_supports()
+        for support in supports:
+            support_rxn += support.get_num_of_restraints()
+        return support_rxn
 
 
 if __name__ == "__main__":
-    pl = (PointLoad(-40), PointLoad(-20))
-    ul = (UniformlyDistributedLoad(-40, 7),)
-    pm = (PointMoment(-90),)
+    pl = PointLoad(-40)
+    pl2 = PointLoad(-40)
+    ul = UniformlyDistributedLoad(-40, 7)
+    pm = PointMoment(-90)
+    s = create_support(ry=True)
     b = Beam(length=12, e=0, i=0)
-    b.append_node("A", 0, 0, point_loads=pl)
-    b.append_node("B", 4, 0, point_loads=pl, point_moments=pm)
-    b.append_node("C", 0, 0, distributed_loads=ul)
-    print(len(b))
-    print(b.get_point_loads())
-    print(b.get_distributed_loads())
-    print(b.get_point_moments())
+    b.append_node("A", 0, 0, point_load=pl)
+    b.append_node("B", 4, 0, point_load=pl2, point_moment=pm)
+    b.append_node("C", 0, 0, distributed_load=ul, support=s)
+    # print(len(b))
+    print(list(b.get_point_loads()))
+    print(list(b.get_distributed_loads()))
+    print(list(b.get_point_moments()))
+    print(list(b.get_supports()))

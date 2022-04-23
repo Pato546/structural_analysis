@@ -106,7 +106,7 @@ class UniformlyDistributedLoad:
         self._start = start
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.magnitude})"
+        return f"{self.__class__.__name__}(magnitude={self.magnitude}, start={self.start}, L={self._length})"
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -130,7 +130,7 @@ class UniformlyDistributedLoad:
 
     @property
     def start(self) -> float:
-        return self.start
+        return self._start
 
     @start.setter
     def start(self, val):

@@ -1,2 +1,2 @@
-from .. import PointLoad
-from .. import FixedSupport, HingeSupport, RollerSupport
+from ..beam import Beam
+from .. import StaticallyIndeterminateExternally, StaticallyUnstableExternally
