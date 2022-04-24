@@ -1,2 +1,2 @@
 from ..beam import Beam
-from .. import StaticallyIndeterminateExternally, StaticallyUnstableExternally
+from .. import StaticallyIndeterminateExternally, StaticallyUnstableExternally, GeometricallyUnstableExternally
