@@ -6,24 +6,31 @@ from structural_analysis import Beam, sign_convention
 from structural_analysis.beam import create_support, create_supports
 
 if __name__ == "__main__":
-    sign_convention()
-    exit()
+    # sign_convention()
+    # p1 = PointLoad(40, angle_of_inclination=60)
+    # p2 = PointLoad(30, angle_of_inclination=25)
+    # p3 = p1 - p2
+    # print(p3.horizontal_force)
+    # print(p3.vertical_force)
+    # exit()
     # Create Beam
     b = Beam(length=8)
 
     # Create Loads
-    # pl = PointLoad(-10)
-    udl = UniformlyDistributedLoad(-6, 3)
-    pm = PointMoment(-120)
+    # pl = PointLoad(-20)
+    # udl = UniformlyDistributedLoad(-5, 3)
+    # pm = PointMoment(6)
 
     # Create Supports
-    s1, *_ = create_supports([{'rx': True, 'ry': True, 'rm': True}])
+    s1, s2 = create_supports([{'ry': True, 'rx': True}, {'ry': True}])
 
     b.append_node('A', 0, support=s1)
-    b.append_node('B', 2, point_moment=pm)
-    b.append_node('C', 4, distributed_load=udl)
-    b.append_node('D', 7)
-    b.append_node('E', 8)
+    b.append_node('B', 4, support=s2)
+    # b.append_node('B', 8, support=s3)
+
+    print(b.members)
+    print(b.is_geometrically_stable())
+    # exit()
 
     # print(b.get_total_support_reactions())
     # print(b.get_eqn_on_conditions())
