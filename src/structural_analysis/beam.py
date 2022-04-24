@@ -23,7 +23,7 @@ class FixedSupport:
     @x.setter
     def x(self, val):
         if val < 0:
-            raise ValueError("val cannot be negative")
+            raise ValueError("x cannot be negative")
         self._x = val
 
     @property
@@ -33,12 +33,24 @@ class FixedSupport:
     @y.setter
     def y(self, val):
         if val < 0:
-            raise ValueError("val cannot be negative")
+            raise ValueError("y cannot be negative")
         self._y = val
 
     @classmethod
     def get_num_of_restraints(cls):
         return cls.NUMBER_OF_RESTRAINTS
+
+    @staticmethod
+    def get_vertical_reaction():
+        return 1
+
+    @staticmethod
+    def get_horizontal_reaction():
+        return 1
+
+    @staticmethod
+    def get_moment():
+        return 1
 
 
 class HingeSupport:
@@ -58,7 +70,7 @@ class HingeSupport:
     @x.setter
     def x(self, val):
         if val < 0:
-            raise ValueError("val cannot be negative")
+            raise ValueError("x cannot be negative")
         self._x = val
 
     @property
@@ -68,12 +80,24 @@ class HingeSupport:
     @y.setter
     def y(self, val):
         if val < 0:
-            raise ValueError("val cannot be negative")
+            raise ValueError("y cannot be negative")
         self._y = val
 
     @classmethod
     def get_num_of_restraints(cls):
         return cls.NUMBER_OF_RESTRAINTS
+
+    @staticmethod
+    def get_vertical_reaction():
+        return 1
+
+    @staticmethod
+    def get_horizontal_reaction():
+        return 1
+
+    @staticmethod
+    def get_moment():
+        return 0
 
 
 class RollerSupport:
@@ -101,7 +125,7 @@ class RollerSupport:
     @x.setter
     def x(self, val):
         if val < 0:
-            raise ValueError("val cannot be negative")
+            raise ValueError("x cannot be negative")
         self._x = val
 
     @property
@@ -111,17 +135,30 @@ class RollerSupport:
     @y.setter
     def y(self, val):
         if val < 0:
-            raise ValueError("val cannot be negative")
+            raise ValueError("y cannot be negative")
         self._y = val
 
     @classmethod
     def get_num_of_restraints(cls):
         return cls.NUMBER_OF_RESTRAINTS
 
-    def is_rxn_horizontal(self):
-        return self.rx
+    def get_vertical_reaction(self):
+        if self.is_rxn_vertical():
+            return 1
+        else:
+            return 0
 
-    def is_rxn_vertical(self):
+    def get_horizontal_reaction(self):
+        if self.is_rxn_vertical():
+            return 0
+        else:
+            return 1
+
+    @staticmethod
+    def get_moment():
+        return 0
+
+    def is_rxn_vertical(self) -> bool:
         return self.ry
 
 
@@ -251,6 +288,11 @@ class Beam:
             cross_section: float or None = None,
     ) -> None:
         self.L = length
+        self._members: int or None = None
+        self._joints: int or None = None
+        self._number_of_vertical_reactions: int or None = None
+        self._number_of_horizontal_reactions: int or None = None
+        self._number_of_moments: int or None = None
 
         if e is None:
             self.modulus_of_elasticity = self.MODULUS_OF_ELASTICITY
@@ -287,8 +329,65 @@ class Beam:
         return f"{self.__class__.__name__}(length={self.L})"
 
     @property
-    def is_empty(self) -> int:
+    def is_empty(self) -> bool:
         return self._size == 0
+
+    @property
+    def members(self):
+        supports = tuple(self.get_supports())
+
+        if len(supports) == 1:
+            if supports[0].get_num_of_restraints() == 3:
+                self._members = 1
+                return self._members
+
+        self._members = len(supports) - 1
+        return self._members
+
+    @property
+    def joints(self):
+        supports = tuple(self.get_supports())
+
+        if len(supports) == 1:
+            if supports[0].get_num_of_restraints() == 3:
+                self._joints = 1
+                return self._joints
+
+        self._joints = len(supports)
+        return self._joints
+
+    @property
+    def number_of_vertical_reactions(self):
+        supports = self.get_supports()
+        num_of_vertical_rxn = 0
+        for support in supports:
+            num_of_vertical_rxn += support.get_vertical_reaction()
+
+        self._number_of_vertical_reactions = num_of_vertical_rxn
+
+        return self._number_of_vertical_reactions
+
+    @property
+    def number_of_horizontal_reactions(self):
+        supports = self.get_supports()
+        num_of_horizontal_rxn = 0
+        for support in supports:
+            num_of_horizontal_rxn += support.get_horizontal_reaction()
+
+        self._number_of_horizontal_reactions = num_of_horizontal_rxn
+
+        return self._number_of_horizontal_reactions
+
+    @property
+    def number_of_moments(self):
+        supports = self.get_supports()
+        num_of_moment = 0
+        for support in supports:
+            num_of_moment += support.get_moment()
+
+        self._number_of_moments = num_of_moment
+
+        return self._number_of_moments
 
     def append_node(
             self,
@@ -319,8 +418,20 @@ class Beam:
         self.tail = node
         self._size += 1
 
-    def check_geometric_stability(self) -> bool:
-        pass
+    def is_geometrically_stable(self) -> bool:
+        members = self.members
+        reactions = self.get_total_support_reactions()
+        joints = self.joints
+        eqn_on_condition = self.get_eqn_on_conditions()
+
+        ie = 3 * members + reactions - (3 * joints + eqn_on_condition)
+
+        if ie == 0:
+            if self.number_of_vertical_reactions == 1:
+                return False
+            if self.number_of_horizontal_reactions == 0:
+                return False
+        return True
 
     def classify_beam(self):
         r = self.get_total_support_reactions()
