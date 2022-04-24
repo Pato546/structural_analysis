@@ -1,5 +1,9 @@
 from . import Beam
-from . import StaticallyUnstableExternally, StaticallyIndeterminateExternally
+from . import (
+    StaticallyUnstableExternally,
+    StaticallyIndeterminateExternally,
+    GeometricallyUnstableExternally,
+)
 
 
 class StaticallyDeterminateSolver:
@@ -7,12 +11,16 @@ class StaticallyDeterminateSolver:
         self.hinge_roller: bool = False
         self.fixed_end: bool = False
         self.beam = beam
-        self.beam_type = self.beam.classify_beam()
 
-        if self.beam_type == "determinate":
-            pass
+        if self.beam.classify_beam() == "determinate":
+            if self.beam.is_geometrically_stable():
+                print("\u2713 Structure is determinate and Geometrically stable")
+            else:
+                raise GeometricallyUnstableExternally(
+                    "Structure is geometrically unstable"
+                )
         else:
-            if self.beam_type == "unstable":
+            if self.beam.classify_beam() == "unstable":
                 raise StaticallyUnstableExternally("Structure is unstable")
             else:
                 raise StaticallyIndeterminateExternally("Structure is indeterminate")
@@ -41,8 +49,8 @@ class StaticallyDeterminateSolver:
 
         for load in self.point_loads:
             load_x = load.x  # The x coordinate of the load from the origin
-            fx = load.horizontal_force() * -1  # The horizontal component of the load
-            fy = load.vertical_force() * -1  # The vertical component of the load
+            fx = load.horizontal_force * -1  # The horizontal component of the load
+            fy = load.vertical_force * -1  # The vertical component of the load
 
             moment_arm_of_load = load_x - support_a_x
 
@@ -122,22 +130,18 @@ class StaticallyDeterminateSolver:
         )
 
         summation_of_moments_from_point_loads = sum(
-            load.vertical_force() * (load.x - self.support.x)
-            for load in self.point_loads
+            load.vertical_force * (load.x - self.support.x) for load in self.point_loads
         )
-        print(f"mpl={summation_of_moments_from_point_loads}")
 
         summation_of_moments_from_distributed_loads = sum(
             load.total_force_of_udl()
             * (load.centroid_of_udl() + (load.start - self.support.x))
             for load in self.distributed_loads
         )
-        print(f"mdl={summation_of_moments_from_distributed_loads}")
 
         summation_of_moments_from_point_moments = sum(
             -1 * load.magnitude for load in self.point_moments
         )
-        print(f"mpm={summation_of_moments_from_point_moments}")
 
         moment_at_support = (
                 summation_of_moments_from_point_loads
