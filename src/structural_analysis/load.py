@@ -2,16 +2,18 @@ import math
 import functools
 
 
+# TODO write add and sub methods for udl and pm
+
+
 @functools.total_ordering
 class PointLoad:
     def __init__(
             self,
-            magnitude: float,
+            magnitude: float or None = None,
             x: float or None = None,
             y: float or None = None,
             angle_of_inclination: float = 90.0,
     ) -> None:
-        self._magnitude = magnitude
         self._angle_of_inclination = angle_of_inclination
 
         if x:
@@ -24,20 +26,56 @@ class PointLoad:
         self._x = x
         self._y = y
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}(magnitude={self.magnitude}, x={self.x}, y={self.y})"
+        if magnitude:
+            self._horizontal_force: float = round(
+                magnitude * self._horizontal_component, 4
+            )
+            self._vertical_force: float = round(magnitude * self._vertical_component)
+        else:
+            self._horizontal_force = None
+            self._vertical_force = None
+
+    # def __repr__(self):
 
     def __str__(self) -> str:
         return self.__class__.__name__
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return abs(self.magnitude) == abs(other.magnitude)
+            return (abs(self.vertical_force), abs(self.horizontal_force)) == (
+                abs(other.vertical_force),
+                abs(other.horizontal_force),
+            )
         return NotImplemented
 
     def __lt__(self, other):
         if isinstance(other, self.__class__):
-            return abs(self.magnitude) < abs(other.magnitude)
+            return (abs(self.vertical_force), abs(self.horizontal_force)) < (
+                abs(other.vertical_force),
+                abs(other.horizontal_force),
+            )
+        return NotImplemented
+
+    def __add__(self, other):
+        if isinstance(self, self.__class__):
+            vertical_force = self.vertical_force + other.vertical_force
+            horizontal_force = self.horizontal_force + other.horizontal_force
+            cls = self.__class__()
+            cls.vertical_force = vertical_force
+            cls.horizontal_force = horizontal_force
+            return cls
+
+        return NotImplemented
+
+    def __sub__(self, other):
+        if isinstance(self, self.__class__):
+            vertical_force = self.vertical_force - other.vertical_force
+            horizontal_force = self.horizontal_force - other.horizontal_force
+            cls = self.__class__()
+            cls.vertical_force = vertical_force
+            cls.horizontal_force = horizontal_force
+            return cls
+
         return NotImplemented
 
     @property
@@ -52,10 +90,6 @@ class PointLoad:
     @property
     def _vertical_component(self) -> float:
         return math.sin(self._angle)
-
-    @property
-    def magnitude(self) -> float:
-        return self._magnitude
 
     @property
     def x(self) -> float:
@@ -77,17 +111,27 @@ class PointLoad:
             raise ValueError("val cannot be less than zero")
         self._y = val
 
+    @property
     def horizontal_force(self) -> float:
-        load_magnitude: float = self.magnitude * self._horizontal_component
+        return self._horizontal_force
 
-        return (
-            0
-            if math.isclose(0.0, load_magnitude, rel_tol=0.001, abs_tol=0.001)
-            else load_magnitude
-        )
+    @horizontal_force.setter
+    def horizontal_force(self, val) -> None:
+        if isinstance(val, (int, float)):
+            self._horizontal_force = val
+        else:
+            raise ValueError("horizontal_force must be a number")
 
+    @property
     def vertical_force(self) -> float:
-        return self.magnitude * self._vertical_component
+        return self._vertical_force
+
+    @vertical_force.setter
+    def vertical_force(self, val):
+        if isinstance(val, (int, float)):
+            self._vertical_force = val
+        else:
+            raise ValueError("vertical_force must be a number")
 
 
 @functools.total_ordering
