@@ -6,6 +6,9 @@ from . import (
 )
 
 
+# TODO check if the x coordinate of the last is <= beam length
+
+
 class StaticallyDeterminateSolver:
     def __init__(self, beam: Beam):
         self.hinge_roller: bool = False
@@ -32,6 +35,7 @@ class StaticallyDeterminateSolver:
             self.support_a = self.supports[0]
             self.support_b = self.supports[1]
             self.hinge_roller = True
+
         elif len(self.supports) == 1:
             self.support = self.supports[0]
             self.fixed_end = True
@@ -112,11 +116,23 @@ class StaticallyDeterminateSolver:
         vertical_rxn_at_a, vertical_rxn_at_b, horizontal_rxn = (
             p + u + pm
             for p, u, pm in zip(
-            rxn_from_point_loads, rxn_from_distributed_loads, rxn_from_point_moments
-        )
+                rxn_from_point_loads, rxn_from_distributed_loads, rxn_from_point_moments
+            )
         )
 
-        return vertical_rxn_at_a, vertical_rxn_at_b, horizontal_rxn
+        if str(self.support_a) == "HingeSupport":
+            self.support_a.vertical_force = vertical_rxn_at_a
+            self.support_a.horizontal_force = horizontal_rxn
+        else:
+            self.support_a.force = vertical_rxn_at_a
+
+        if str(self.support_b) == "HingeSupport":
+            self.support_b.vertical_force = vertical_rxn_at_b
+            self.support_b.horizontal_force = horizontal_rxn
+        else:
+            self.support_b.force = vertical_rxn_at_b
+
+        return self.beam
 
     def _fixed_end_solver(self):
         # TODO work on horizontal reaction
@@ -126,7 +142,7 @@ class StaticallyDeterminateSolver:
             -1 * load.total_force_of_udl() for load in self.distributed_loads
         )
         vertical_reaction_at_support = (
-                summation_of_point_loads + summation_of_distributed_loads
+            summation_of_point_loads + summation_of_distributed_loads
         )
 
         summation_of_moments_from_point_loads = sum(
@@ -144,18 +160,24 @@ class StaticallyDeterminateSolver:
         )
 
         moment_at_support = (
-                summation_of_moments_from_point_loads
-                + summation_of_moments_from_distributed_loads
-                + summation_of_moments_from_point_moments
+            summation_of_moments_from_point_loads
+            + summation_of_moments_from_distributed_loads
+            + summation_of_moments_from_point_moments
         )
 
         horizontal_reaction_at_support = 0
 
-        return (
+        (
+            self.support.moment,
+            self.support.vertical_force,
+            self.support.horizontal_force,
+        ) = (
             moment_at_support,
             vertical_reaction_at_support,
             horizontal_reaction_at_support,
         )
+
+        return self.beam
 
     def solve(self):
         if self.hinge_roller:
