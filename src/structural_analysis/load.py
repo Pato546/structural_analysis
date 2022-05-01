@@ -2,9 +2,6 @@ import math
 import functools
 
 
-# TODO write add and sub methods for udl and pm
-
-
 @functools.total_ordering
 class PointLoad:
     def __init__(
@@ -35,7 +32,8 @@ class PointLoad:
             self._horizontal_force = None
             self._vertical_force = None
 
-    # def __repr__(self):
+    def __repr__(self):
+        return f"{self.__class__.__name__}(vertical_force={self.vertical_force}, horizontal_force={self.horizontal_force})"
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -98,7 +96,7 @@ class PointLoad:
     @x.setter
     def x(self, val):
         if val < 0:
-            raise ValueError("val cannot be less than zero")
+            raise ValueError("x cannot be less than zero")
         self._x = val
 
     @property
@@ -108,7 +106,7 @@ class PointLoad:
     @y.setter
     def y(self, val):
         if val < 0:
-            raise ValueError("val cannot be less than zero")
+            raise ValueError("y cannot be less than zero")
         self._y = val
 
     @property
@@ -136,7 +134,7 @@ class PointLoad:
 
 @functools.total_ordering
 class UniformlyDistributedLoad:
-    def __init__(self, magnitude: float, length: float, start: float or None = None):
+    def __init__(self, magnitude: float, length: float or None = None, start: float or None = None):
         self._magnitude = magnitude
 
         if length < 0:
@@ -168,6 +166,16 @@ class UniformlyDistributedLoad:
             return abs(self.total_force_of_udl()) < abs(other.total_force_of_udl())
         return NotImplemented
 
+    def __add__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__class__(magnitude=self.magnitude + other.magnitude)
+        return NotImplemented
+
+    def __sub__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__class__(magnitude=self.magnitude - other.magnitude)
+        return NotImplemented
+
     @property
     def magnitude(self) -> float:
         return self._magnitude
@@ -179,8 +187,18 @@ class UniformlyDistributedLoad:
     @start.setter
     def start(self, val):
         if val < 0:
-            raise ValueError("val cannot be less than zero")
+            raise ValueError("start cannot be less than zero")
         self._start = val
+
+    @property
+    def length(self):
+        return self._length
+
+    @length.setter
+    def length(self, val):
+        if val < 0:
+            raise ValueError("length cannot be less than zero")
+        self._length = val
 
     def centroid_of_udl(self) -> float:
         return len(self) / 2
@@ -220,6 +238,16 @@ class PointMoment:
     def __lt__(self, other):
         if isinstance(other, self.__class__):
             return abs(self.magnitude) < abs(other.magnitude)
+        return NotImplemented
+
+    def __add__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__class__(magnitude=self.magnitude + other.magnitude)
+        return NotImplemented
+
+    def __sub__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__class__(magnitude=self.magnitude - other.magnitude)
         return NotImplemented
 
     @property
