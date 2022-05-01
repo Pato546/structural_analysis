@@ -9,12 +9,55 @@ from .beam_errors import SupportCreationError
 class FixedSupport:
     NUMBER_OF_RESTRAINTS = 3
 
-    def __init__(self, x: float or None = None, y: float or None = None):
+    def __init__(
+            self,
+            moment: float or None = None,
+            vertical_force: float or None = None,
+            horizontal_force: float or None = None,
+            x: float or None = None,
+            y: float or None = None,
+    ):
+        self._moment = moment
+        self._vertical_force = vertical_force
+        self._horizontal_force = horizontal_force
         self._x = x
         self._y = y
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return self.__class__.__name__
+
+    @property
+    def moment(self):
+        return self._moment
+
+    @moment.setter
+    def moment(self, val):
+        if isinstance(val, (int, float)):
+            self._moment = val
+        else:
+            raise ValueError("moment can only be int or float")
+
+    @property
+    def vertical_force(self):
+        return self._vertical_force
+
+    @vertical_force.setter
+    def vertical_force(self, val):
+        if isinstance(val, (int, float)):
+            self._vertical_force = val
+        else:
+            raise ValueError("vertical force can only be int or float")
+
+    @property
+    def horizontal_force(self):
+        return self._horizontal_force
+
+    @horizontal_force.setter
+    def horizontal_force(self, val):
+        if isinstance(val, (int, float)):
+            self._horizontal_force = val
+        else:
+            raise ValueError("horizontal force can only be int or float")
 
     @property
     def x(self) -> float:
@@ -56,12 +99,42 @@ class FixedSupport:
 class HingeSupport:
     NUMBER_OF_RESTRAINTS = 2
 
-    def __init__(self, x: float or None = None, y: float or None = None):
+    def __init__(
+            self,
+            vertical_force: float or None = None,
+            horizontal_force: float or None = None,
+            x: float or None = None,
+            y: float or None = None,
+    ):
+        self._vertical_force = vertical_force
+        self._horizontal_force = horizontal_force
         self._x = x
         self._y = y
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return self.__class__.__name__
+
+    @property
+    def vertical_force(self):
+        return self._vertical_force
+
+    @vertical_force.setter
+    def vertical_force(self, val):
+        if isinstance(val, (int, float)):
+            self._vertical_force = val
+        else:
+            raise ValueError("vertical force can only be int or float")
+
+    @property
+    def horizontal_force(self):
+        return self._horizontal_force
+
+    @horizontal_force.setter
+    def horizontal_force(self, val):
+        if isinstance(val, (int, float)):
+            self._horizontal_force = val
+        else:
+            raise ValueError("horizontal force can only be int or float")
 
     @property
     def x(self) -> float:
@@ -105,18 +178,31 @@ class RollerSupport:
 
     def __init__(
             self,
+            force: float or None = None,
             x: float or None = None,
             y: float or None = None,
             rx: bool or None = None,
-            ry: bool or None = None,
+            ry: bool or None = None
     ):
+        self._force = force
         self._x = x
         self._y = y
         self.rx = rx
         self.ry = ry
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return self.__class__.__name__
+
+    @property
+    def force(self):
+        return self._force
+
+    @force.setter
+    def force(self, val):
+        if isinstance(val, (int, float)):
+            self._force = val
+        else:
+            raise ValueError("force can only be int or float")
 
     @property
     def x(self) -> float:
@@ -159,7 +245,10 @@ class RollerSupport:
         return 0
 
     def is_rxn_vertical(self) -> bool:
-        return self.ry
+        try:
+            return self.ry
+        except AttributeError:
+            return self.rx
 
 
 def create_support(
@@ -332,8 +421,11 @@ class Beam:
     def is_empty(self) -> bool:
         return self._size == 0
 
+    def reactions(self):
+        pass
+
     @property
-    def members(self):
+    def members(self) -> int:
         supports = tuple(self.get_supports())
 
         if len(supports) == 1:
@@ -345,7 +437,7 @@ class Beam:
         return self._members
 
     @property
-    def joints(self):
+    def joints(self) -> int:
         supports = tuple(self.get_supports())
 
         if len(supports) == 1:
@@ -439,11 +531,11 @@ class Beam:
         rhs = self.NUMBER_OF_EQUILIBRIUM_EQUATIONS + eqn_on_condition
 
         if r < rhs:
-            return 'unstable'
+            return "unstable"
         elif r == rhs:
-            return 'determinate'
+            return "determinate"
         else:
-            return 'indeterminate'
+            return "indeterminate"
 
     def get_beam_information(self) -> dict:
         return {
