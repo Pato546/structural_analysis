@@ -181,7 +181,15 @@ class BendingShearCalculator:
         for idx, eqn in enumerate(self.bending_moments_equations):
             lower_bound_val = round(eqn.eqn.subs({"x": eqn.boundary.lower_bound}), 2)
             upper_bound_val = round(eqn.eqn.subs({"x": eqn.boundary.upper_bound}), 2)
-            v = (lower_bound_val, upper_bound_val, p[idx][0], p[idx][1])
+            # v = (lower_bound_val, upper_bound_val, p[idx][0], p[idx][1])
+
+            v = {
+                'lower_bound': p[idx][0],
+                'upper_bound': p[idx][1],
+                'lower_bound_val': lower_bound_val,
+                'upper_bound_val': upper_bound_val,
+                "eqn": eqn.eqn,
+            }
 
             b.append(v)
 
@@ -198,7 +206,13 @@ class BendingShearCalculator:
         for idx, eqn in enumerate(self.shear_force_equations):
             lower_bound_val = round(eqn.eqn.subs({"x": eqn.boundary.lower_bound}), 2)
             upper_bound_val = round(eqn.eqn.subs({"x": eqn.boundary.upper_bound}), 2)
-            v = (lower_bound_val, upper_bound_val, p[idx][0], p[idx][1])
+            # v = (lower_bound_val, upper_bound_val, p[idx][0], p[idx][1])
+
+            v = {
+                p[idx][0]: lower_bound_val,
+                p[idx][1]: upper_bound_val,
+                "eqn": eqn.eqn,
+            }
 
             s.append(v)
 
