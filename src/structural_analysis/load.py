@@ -207,6 +207,14 @@ class UniformlyDistributedLoad:
         return self.magnitude * len(self)
 
 
+class TriangularLoad:
+    pass
+
+
+class TrapezoidalLoad:
+    pass
+
+
 @functools.total_ordering
 class PointMoment:
     def __init__(

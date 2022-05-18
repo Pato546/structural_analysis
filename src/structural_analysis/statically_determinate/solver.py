@@ -51,11 +51,10 @@ class StaticallyDeterminateSolver:
         summation_of_moments = 0
 
         for load in self.point_loads:
-            load_x = load.x  # The x coordinate of the load from the origin
             fx = load.horizontal_force * -1  # The horizontal component of the load
             fy = load.vertical_force * -1  # The vertical component of the load
 
-            moment_arm_of_load = load_x - self.support_a_x
+            moment_arm_of_load = load.x - self.support_a_x
 
             summation_of_vertical_forces += fy
             summation_of_horizontal_forces += fx
@@ -74,9 +73,8 @@ class StaticallyDeterminateSolver:
         summation_of_moments = 0
 
         for load in self.distributed_loads:
-            start_of_udl = load.start
             centroid_of_udl = load.centroid_of_udl()
-            moment_arm_of_udl = centroid_of_udl + (start_of_udl - self.support_a_x)
+            moment_arm_of_udl = centroid_of_udl + (load.start - self.support_a_x)
 
             total_force_of_udl = -1 * load.total_force_of_udl()
 
@@ -111,8 +109,8 @@ class StaticallyDeterminateSolver:
         vertical_rxn_at_a, vertical_rxn_at_b, horizontal_rxn = (
             p + u + pm
             for p, u, pm in zip(
-                rxn_from_point_loads, rxn_from_distributed_loads, rxn_from_point_moments
-            )
+            rxn_from_point_loads, rxn_from_distributed_loads, rxn_from_point_moments
+        )
         )
 
         if str(self.support_a) == "HingeSupport":
@@ -148,7 +146,7 @@ class StaticallyDeterminateSolver:
         horizontal_reaction_at_support = summation_horizontal_forces
 
         vertical_reaction_at_support = (
-            summation_of_vertical_forces + summation_of_distributed_loads
+                summation_of_vertical_forces + summation_of_distributed_loads
         )
 
         summation_of_moments_from_point_loads = sum(
@@ -166,9 +164,9 @@ class StaticallyDeterminateSolver:
         )
 
         moment_at_support = (
-            summation_of_moments_from_point_loads
-            + summation_of_moments_from_distributed_loads
-            + summation_of_moments_from_point_moments
+                summation_of_moments_from_point_loads
+                + summation_of_moments_from_distributed_loads
+                + summation_of_moments_from_point_moments
         )
 
         (

@@ -1,9 +1,13 @@
 from typing import Iterable, Any
+from types import MappingProxyType
 
 # import math
 
 from .load import PointLoad, UniformlyDistributedLoad, PointMoment
 from .beam_errors import SupportCreationError
+
+
+# TODO automatically update the beam's length when nodes are added
 
 
 class FixedSupport:
@@ -22,6 +26,9 @@ class FixedSupport:
         self._horizontal_force = horizontal_force
         self._x = x
         self._y = y
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(x={self.x}, y={self.y})"
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -111,6 +118,9 @@ class HingeSupport:
         self._x = x
         self._y = y
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(x={self.x}, y={self.y})"
+
     def __str__(self) -> str:
         return self.__class__.__name__
 
@@ -190,6 +200,9 @@ class RollerSupport:
         self.rx = rx
         self.ry = ry
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(x={self.x}, y={self.y})"
+
     def __str__(self) -> str:
         return self.__class__.__name__
 
@@ -249,6 +262,14 @@ class RollerSupport:
             return self.ry
         except AttributeError:
             return self.rx
+
+
+class InternalHinge:
+    pass
+
+
+class InternalRoller:
+    pass
 
 
 def create_support(
@@ -406,7 +427,7 @@ class Beam:
         self.head = None
         self.tail = None
         self._size: int = 0
-        self.beam_information = {}
+        # self.beam_information = {}
 
     def __len__(self) -> int:
         return self._size
@@ -537,13 +558,13 @@ class Beam:
         else:
             return "indeterminate"
 
-    def get_beam_information(self) -> dict:
-        return {
+    def get_beam_information(self) -> MappingProxyType:
+        return MappingProxyType({
             "point_loads": self.get_point_loads(),
             "distributed_loads": self.get_distributed_loads(),
             "point_moments": self.get_point_moments(),
             "supports": self.get_supports(),
-        }
+        })
 
     def get_degree_of_ext_indeterminacy(self) -> int:
         r = self.get_total_support_reactions()
