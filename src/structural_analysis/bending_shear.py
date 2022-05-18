@@ -1,6 +1,7 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import NamedTuple
 
-from sympy import sympify, Derivative, pprint
+from sympy import sympify, Derivative
 
 
 class NotSolvedError(Exception):
@@ -28,15 +29,17 @@ class Boundary:
 
 
 @dataclass(frozen=True)
-class BendingMomentEquation:
+class Equation:
     eqn: str
     boundary: Boundary
 
 
-@dataclass(frozen=True)
-class ShearForceEquation:
+class Result(NamedTuple):
+    lower_bound: float
+    upper_bound: float
+    lower_bound_val: float
+    upper_bound_val: float
     eqn: str
-    boundary: Boundary
 
 
 class BendingShearCalculator:
@@ -161,8 +164,8 @@ class BendingShearCalculator:
                 bending_moment_equation, "x", evaluate=True
             )
             boundary = Boundary(lower_bound=lower_bound, upper_bound=upper_bound)
-            b = BendingMomentEquation(eqn=bending_moment_equation, boundary=boundary)
-            s = ShearForceEquation(eqn=shear_force_equation, boundary=boundary)
+            b = Equation(eqn=bending_moment_equation, boundary=boundary)
+            s = Equation(eqn=shear_force_equation, boundary=boundary)
 
             self._bending_moments_equations.append(b)
             self._shear_force_equations.append(s)
@@ -181,15 +184,14 @@ class BendingShearCalculator:
         for idx, eqn in enumerate(self.bending_moments_equations):
             lower_bound_val = round(eqn.eqn.subs({"x": eqn.boundary.lower_bound}), 2)
             upper_bound_val = round(eqn.eqn.subs({"x": eqn.boundary.upper_bound}), 2)
-            # v = (lower_bound_val, upper_bound_val, p[idx][0], p[idx][1])
-
-            v = {
-                'lower_bound': p[idx][0],
-                'upper_bound': p[idx][1],
-                'lower_bound_val': lower_bound_val,
-                'upper_bound_val': upper_bound_val,
-                "eqn": eqn.eqn,
-            }
+            v = (lower_bound_val, upper_bound_val, p[idx][0], p[idx][1])
+            v = Result(
+                lower_bound=p[idx][0],
+                upper_bound=p[idx][1],
+                lower_bound_val=lower_bound_val,
+                upper_bound_val=upper_bound_val,
+                eqn=eqn.eqn,
+            )
 
             b.append(v)
 
@@ -208,11 +210,13 @@ class BendingShearCalculator:
             upper_bound_val = round(eqn.eqn.subs({"x": eqn.boundary.upper_bound}), 2)
             # v = (lower_bound_val, upper_bound_val, p[idx][0], p[idx][1])
 
-            v = {
-                p[idx][0]: lower_bound_val,
-                p[idx][1]: upper_bound_val,
-                "eqn": eqn.eqn,
-            }
+            v = Result(
+                lower_bound=p[idx][0],
+                upper_bound=p[idx][1],
+                lower_bound_val=lower_bound_val,
+                upper_bound_val=upper_bound_val,
+                eqn=eqn.eqn,
+            )
 
             s.append(v)
 
