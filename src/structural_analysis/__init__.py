@@ -1,5 +1,5 @@
 from .load import PointLoad, UniformlyDistributedLoad, PointMoment
-from .beam import Beam
+from .beam import Beam, FixedSupport, HingeSupport, RollerSupport, InternalRoller, InternalHinge
 from .beam_errors import (
     GeometricallyUnstableExternally,
     StaticallyUnstableExternally,

@@ -589,9 +589,9 @@ class Beam:
         equations = 0
         supports = self.get_supports()
         for support in supports:
-            if str(support) == "InternalHinge":
+            if isinstance(support, InternalHinge):
                 equations += 1
-            elif str(support) == "InternalRoller":
+            elif isinstance(support, InternalRoller):
                 equations += 2
 
         return equations

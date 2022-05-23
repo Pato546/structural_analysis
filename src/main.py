@@ -2,12 +2,14 @@ from structural_analysis import PointLoad, UniformlyDistributedLoad, PointMoment
 from structural_analysis.statically_determinate.solver import (
     StaticallyDeterminateSolver,
 )
-from structural_analysis import Beam
+from structural_analysis import Beam, FixedSupport, HingeSupport, RollerSupport
 from structural_analysis.beam import create_supports
 from structural_analysis.bending_shear import BendingShearCalculator
 from structural_analysis.statically_indeterminate.three_moment.solver import (
     ThreeMomentSolver,
 )
+
+from pprint import pprint
 
 if __name__ == "__main__":
 
@@ -16,7 +18,7 @@ if __name__ == "__main__":
 
         for node in solved_beam:
             if node.support:
-                if str(node.support) == "HingeSupport":
+                if isinstance(node.support, HingeSupport):
                     if node.support.vertical_force < 0:
                         print(
                             f"{node.name}y = {abs(node.support.vertical_force):.2f} \u2193"
@@ -35,7 +37,7 @@ if __name__ == "__main__":
                             f"{node.name}x = {node.support.horizontal_force:.2f} \u2192"
                         )
 
-                elif str(node.support) == "RollerSupport":
+                elif isinstance(node.support, RollerSupport):
                     if node.support.force < 0:
                         print(f"{node.name}y = {abs(node.support.force):.2f} \u2193")
                     else:
@@ -68,32 +70,51 @@ if __name__ == "__main__":
 
     b = Beam(8)
     #
-    pl1 = PointLoad(-80)
+    pl1 = PointLoad(-10, angle_of_inclination=60)
+    print(pl1)
     # pl2 = PointLoad(-8)
-    # udl = UniformlyDistributedLoad(-3, 4)
-    #
+    # udl = UniformlyDistributedLoad(-10, 5)
+    # #
     s1, s2, s3, s4 = create_supports(
         [
-            {"rx": True, "ry": True},
-            {"ry": True},
+            {"rx": True, "ry": True, 'rm': True},
+            {'rx': True, 'ry': True},
             {"rx": True, "ry": True},
             {"rx": True, "ry": True},
         ]
     )
     #
     # b.append_node('A', 0, support=s1)
-    # b.append_node('B', 2, point_load=pl1)
-    # b.append_node('C', 6, support=s2)
-    # b.append_node('D', 8, point_load=pl2)
-    # b.append_node('E', 11, support=s3, distributed_load=udl)
-    # b.append_node('F', 15, support=s4)
+    # b.append_node('B', 3, point_load=pl1)
+    # b.append_node('C', 5, support=s2, distributed_load=udl)
+    # b.append_node('D', 10, support=s3)
+    # # b.append_node('E', 11, support=s3)
     #
     # m = ThreeMomentSolver(b)
-    # print(m.get_sub_beams())
+    # # pprint(m.get_sub_beams())
+    # pprint(m.area_mul_centroid())
 
-    b.append_node('A', 0, support=s1)
-    b.append_node('B', 4, point_load=pl1)
-    b.append_node('C', 8, support=s2)
+    # b.append_node('A', 0, support=s1)
+    # b.append_node('B', 4, point_load=pl1)
+    # b.append_node('C', 8, support=s2)
+    #
+    # b_s = StaticallyDeterminateSolver(b).solve()
+    # display_results(b_s)
+    #
+    # b_c = BendingShearCalculator(b)
+    # print(b_c.calculate_bending())
+    # print("\n\n")
+    # print(b_c.calculate_shear())
+
+    udl = UniformlyDistributedLoad(-5, 3)
+    pm = PointMoment(6)
+
+    b.append_node('A', 0, distributed_load=udl, support=s1)
+    b.append_node('B', 3, point_moment=pm, point_load=pl1)
 
     b_s = StaticallyDeterminateSolver(b).solve()
     display_results(b_s)
+
+    b_c = BendingShearCalculator(b)
+    print(b_c.calculate_bending())
+    print(b_c.calculate_shear())

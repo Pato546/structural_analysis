@@ -1,45 +1,65 @@
-from dataclasses import dataclass
-from typing import NamedTuple
-
 from sympy import sympify, Derivative
+from sympy.core.numbers import Float, Integer
+import attrs
+
+from . import (
+    HingeSupport,
+    RollerSupport,
+    PointMoment,
+    UniformlyDistributedLoad,
+    PointLoad,
+)
 
 
 class NotSolvedError(Exception):
     pass
 
 
-@dataclass
+@attrs.define(slots=True)
 class ULoad:
-    magnitude: float
-    length: list
-    type: str
+    magnitude: int or float = attrs.field(validator=attrs.validators.instance_of((int, float)))
+    type: str = attrs.field(validator=attrs.validators.instance_of(UniformlyDistributedLoad))
+    length: list = attrs.field(factory=list)
 
 
-@dataclass
+@attrs.define()
 class Load:
-    magnitude: float
-    length: float
-    type: str
+    magnitude: int or float = attrs.field(validator=attrs.validators.instance_of((int, float)))
+    length: int or float = attrs.field(validator=attrs.validators.instance_of((int, float)))
+    type = attrs.field()
 
 
-@dataclass(frozen=True)
+@attrs.define(frozen=True, slots=True)
 class Boundary:
-    lower_bound: float
-    upper_bound: float
+    lower_bound: int or float = attrs.field(
+        validator=attrs.validators.instance_of((int, float))
+    )
+    upper_bound: int or float = attrs.field(
+        validator=attrs.validators.instance_of((int, float))
+    )
 
 
-@dataclass(frozen=True)
+@attrs.define(frozen=True, slots=True)
 class Equation:
-    eqn: str
-    boundary: Boundary
+    eqn: str = attrs.field()
+    boundary: Boundary = attrs.field(validator=attrs.validators.instance_of(Boundary))
 
 
-class Result(NamedTuple):
-    lower_bound: float
-    upper_bound: float
-    lower_bound_val: float
-    upper_bound_val: float
-    eqn: str
+@attrs.define(frozen=True, slots=True)
+class Result:
+    lower_bound: int or float = attrs.field(
+        validator=attrs.validators.instance_of((int, float))
+    )
+    upper_bound: int or float = attrs.field(
+        validator=attrs.validators.instance_of((int, float))
+    )
+    lower_bound_val: Integer or Float = attrs.field(
+        validator=attrs.validators.instance_of((Integer, Float))
+    )
+    upper_bound_val: Integer or Float = attrs.field(
+        validator=attrs.validators.instance_of((Integer, Float))
+    )
+    eqn: str = attrs.field()
 
 
 class BendingShearCalculator:
@@ -76,7 +96,7 @@ class BendingShearCalculator:
             upper_bound: int = x_coordinate_of_next_node - x_coordinate_of_node
 
             for load in self.cache:
-                if load.type == "UniformlyDistributedLoad":
+                if isinstance(load.type, UniformlyDistributedLoad):
                     if len(load.length) > 1:
                         eqn += f" + {load.magnitude * load.length[0]} * ({load.length[0] / 2} + {sum(load.length[1:])} + x)"
                         load.length.append(upper_bound)
@@ -84,7 +104,7 @@ class BendingShearCalculator:
                         eqn += f" + {load.magnitude * load.length[0]} * ({load.length[0] / 2} + x)"
                         load.length.append(upper_bound)
 
-                elif load.type == "PointMoment":
+                elif isinstance(load.type, PointMoment):
                     eqn += f" + {load.magnitude}"
 
                 else:
@@ -92,22 +112,22 @@ class BendingShearCalculator:
                     load.length = load.length + upper_bound
 
             if node.support:
-                if str(node.support) == "HingeSupport":
+                if isinstance(node.support, HingeSupport):
                     eqn += f" + {node.support.vertical_force} * x"
                     self.cache.append(
                         Load(
                             magnitude=node.support.vertical_force,
                             length=upper_bound,
-                            type=str(node.support),
+                            type=node.support,
                         )
                     )
-                elif str(node.support) == "RollerSupport":
+                elif isinstance(node.support, RollerSupport):
                     eqn += f" + {node.support.force} * x"
                     self.cache.append(
                         Load(
                             magnitude=node.support.force,
                             length=upper_bound,
-                            type=str(node.support),
+                            type=node.support,
                         )
                     )
                 else:
@@ -119,12 +139,12 @@ class BendingShearCalculator:
                             Load(
                                 magnitude=node.support.vertical_force,
                                 length=upper_bound,
-                                type="HingeSupport",
+                                type=HingeSupport(),
                             ),
                             Load(
                                 magnitude=node.support.moment,
                                 length=upper_bound,
-                                type="PointMoment",
+                                type=PointMoment(magnitude=node.support.moment),
                             ),
                         ]
                     )
@@ -135,7 +155,7 @@ class BendingShearCalculator:
                     Load(
                         magnitude=node.point_load.vertical_force,
                         length=upper_bound,
-                        type=str(node.point_load),
+                        type=node.point_load,
                     )
                 )
 
@@ -145,7 +165,7 @@ class BendingShearCalculator:
                     ULoad(
                         magnitude=node.distributed_load.magnitude,
                         length=[upper_bound],
-                        type=str(node.distributed_load),
+                        type=node.distributed_load,
                     )
                 )
 
@@ -155,7 +175,7 @@ class BendingShearCalculator:
                     Load(
                         magnitude=node.point_moment.magnitude,
                         length=upper_bound,
-                        type=str(node.point_moment),
+                        type=node.point_moment,
                     )
                 )
 

@@ -1,4 +1,5 @@
 from . import Beam
+from .. import FixedSupport, HingeSupport, InternalRoller
 from . import (
     StaticallyUnstableExternally,
     StaticallyIndeterminateExternally,
@@ -10,24 +11,26 @@ from . import (
 
 
 class StaticallyDeterminateSolver:
-    def __init__(self, beam: Beam):
+    def __init__(self, beam: Beam, check_determinacy: bool = True):
         self.beam = beam
 
-        if self.beam.classify_beam() == "determinate":
-            if self.beam.is_geometrically_stable():
-                # print("\u2713 Structure is determinate and Geometrically stable")
+        if self.beam.is_geometrically_stable():
+            # print("\u2713 Structure is determinate and Geometrically stable")
+            pass
+        else:
+            raise GeometricallyUnstableExternally("Structure is geometrically unstable")
+        if check_determinacy:
+            if self.beam.classify_beam() == "determinate":
                 pass
             else:
-                raise GeometricallyUnstableExternally(
-                    "Structure is geometrically unstable"
-                )
-        else:
-            if self.beam.classify_beam() == "unstable":
-                raise StaticallyUnstableExternally("Structure is unstable")
-            else:
-                raise StaticallyIndeterminateExternally("Structure is indeterminate")
+                if self.beam.classify_beam() == "unstable":
+                    raise StaticallyUnstableExternally("Structure is unstable")
+                else:
+                    raise StaticallyIndeterminateExternally(
+                        "Structure is indeterminate"
+                    )
 
-        self.beam_information: dict = self.beam.get_beam_information()
+        self.beam_information = self.beam.get_beam_information()
         self.supports = tuple(self.beam_information["supports"])
 
         if len(self.supports) > 1:
@@ -109,17 +112,17 @@ class StaticallyDeterminateSolver:
         vertical_rxn_at_a, vertical_rxn_at_b, horizontal_rxn = (
             p + u + pm
             for p, u, pm in zip(
-            rxn_from_point_loads, rxn_from_distributed_loads, rxn_from_point_moments
-        )
+                rxn_from_point_loads, rxn_from_distributed_loads, rxn_from_point_moments
+            )
         )
 
-        if str(self.support_a) == "HingeSupport":
+        if isinstance(self.support_a, HingeSupport):
             self.support_a.vertical_force = vertical_rxn_at_a
             self.support_a.horizontal_force = horizontal_rxn
         else:
             self.support_a.force = vertical_rxn_at_a
 
-        if str(self.support_b) == "HingeSupport":
+        if isinstance(self.support_b, HingeSupport):
             self.support_b.vertical_force = vertical_rxn_at_b
             self.support_b.horizontal_force = horizontal_rxn
         else:
@@ -146,7 +149,7 @@ class StaticallyDeterminateSolver:
         horizontal_reaction_at_support = summation_horizontal_forces
 
         vertical_reaction_at_support = (
-                summation_of_vertical_forces + summation_of_distributed_loads
+            summation_of_vertical_forces + summation_of_distributed_loads
         )
 
         summation_of_moments_from_point_loads = sum(
@@ -164,9 +167,9 @@ class StaticallyDeterminateSolver:
         )
 
         moment_at_support = (
-                summation_of_moments_from_point_loads
-                + summation_of_moments_from_distributed_loads
-                + summation_of_moments_from_point_moments
+            summation_of_moments_from_point_loads
+            + summation_of_moments_from_distributed_loads
+            + summation_of_moments_from_point_moments
         )
 
         (
