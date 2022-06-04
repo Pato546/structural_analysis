@@ -8,3 +8,10 @@
 """
 
 # import pytest
+
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+sys.path.insert(1, f'{BASE_DIR}')

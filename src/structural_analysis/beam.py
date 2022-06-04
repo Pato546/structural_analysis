@@ -1,7 +1,7 @@
 from typing import Iterable, Any
 from types import MappingProxyType
 
-# import math
+import attrs
 
 from .load import PointLoad, UniformlyDistributedLoad, PointMoment
 from .beam_errors import SupportCreationError
@@ -30,8 +30,8 @@ class FixedSupport:
     def __repr__(self):
         return f"{self.__class__.__name__}(x={self.x}, y={self.y})"
 
-    def __str__(self) -> str:
-        return self.__class__.__name__
+    # def __str__(self) -> str:
+    #     return self.__class__.__name__
 
     @property
     def moment(self):
@@ -121,8 +121,8 @@ class HingeSupport:
     def __repr__(self):
         return f"{self.__class__.__name__}(x={self.x}, y={self.y})"
 
-    def __str__(self) -> str:
-        return self.__class__.__name__
+    # def __str__(self) -> str:
+    #     return self.__class__.__name__
 
     @property
     def vertical_force(self):
@@ -192,7 +192,7 @@ class RollerSupport:
             x: float or None = None,
             y: float or None = None,
             rx: bool or None = None,
-            ry: bool or None = None
+            ry: bool or None = None,
     ):
         self._force = force
         self._x = x
@@ -291,171 +291,135 @@ def create_supports(restraints: list[dict]):
     return [create_support(**r) for r in restraints]
 
 
-class Beam:
-    # total number of equilibrium equations
-    NUMBER_OF_EQUILIBRIUM_EQUATIONS = 3
+@attrs.define(slots=True)
+class Node:
+    name: str = attrs.field(validator=attrs.validators.instance_of(str))
+    x: int or float = attrs.field(validator=attrs.validators.ge(0))
+    y: int or float = attrs.field(validator=attrs.validators.ge(0))
+    next_ = attrs.field(repr=False)
+    point_load: PointLoad = attrs.field(default=None, kw_only=True, repr=False)
+    distributed_load: UniformlyDistributedLoad = attrs.field(
+        default=None, kw_only=True, repr=False
+    )
+    point_moment: PointMoment = attrs.field(default=None, kw_only=True)
+    support: FixedSupport or HingeSupport or RollerSupport = attrs.field(
+        default=None, kw_only=True, repr=False
+    )
 
-    # Material Properties
-    MODULUS_OF_ELASTICITY = 20e-07
-    THERMAL_EXPANSION_ALPHA = 1.2e-05
+    elements: list = attrs.field(init=False, factory=list)
 
-    # Geometric Properties
-    CROSS_SECTIONAL_AREA = 1.000e-02
-    MOMENT_OF_INERTIA = 1.000e-04
+    def __attrs_post_init__(self):
+        if self.point_load:
+            self.point_load.x = self.x
+            self.point_load.y = self.y
 
-    class beam_iterator:
-        def __init__(self, obj):
-            self.head = obj.head
+            self.elements.append(self.point_load)
 
-        def __iter__(self):
-            return self
+        if self.distributed_load:
+            self.distributed_load.start = self.x
 
-        def __next__(self):
+            self.elements.append(self.distributed_load)
+
+        if self.point_moment:
+            self.point_moment.x = self.x
+            self.point_moment.y = self.y
+
+            self.elements.append(self.point_moment)
+
+        if self.support:
+            self.support.x = self.x
+            self.support.y = self.y
+
+            self.elements.append(self.support)
+
+    @property
+    def has_support(self):
+        return True if self.support else False
+
+
+class beam_iterator:
+    def __init__(self, obj):
+        self.head = obj.head
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            return self.head
+        except AttributeError:
+            raise StopIteration
+        finally:
             try:
-                return self.head
+                self.head = self.head.next_
             except AttributeError:
                 raise StopIteration
-            finally:
-                try:
-                    self.head = self.head.next_
-                except AttributeError:
-                    raise StopIteration
 
-    class Node:
-        def __init__(
-                self,
-                name: str,
-                x: float,
-                y: float,
-                next_,
-                *,
-                point_load: PointLoad or None = None,
-                distributed_load: UniformlyDistributedLoad or None = None,
-                point_moment: PointMoment or None = None,
-                support: Any or None = None,
-        ) -> None:
-            self.name = name
-            self.next_ = next_
-            self.point_load = point_load
-            self.distributed_load = distributed_load
-            self.point_moment = point_moment
-            self.support = support
 
-            if x < 0:
-                raise ValueError("x cannot be negative")
-            self._x = x
+@attrs.define(slots=True)
+class Beam:
+    # total number of equilibrium equations
+    NUMBER_OF_EQUILIBRIUM_EQUATIONS: int = 3
 
-            if y < 0:
-                raise ValueError("y cannot be negative")
-            self._y = y
+    # Material Properties
+    MODULUS_OF_ELASTICITY: float = 20e-07
+    THERMAL_EXPANSION_ALPHA: float = 1.2e-05
 
-            if self.point_load:
-                self.point_load.x = self.x
-                self.point_load.y = self.y
+    # Geometric Properties
+    CROSS_SECTIONAL_AREA: float = 1.000e-02
+    MOMENT_OF_INERTIA: float = 1.000e-04
+    L: float = attrs.field(default=None)
+    modulus_of_elasticity: float = attrs.field(kw_only=True, repr=False)
+    thermal_expansion_alpha: float = attrs.field(kw_only=True, repr=False)
+    moment_of_inertia: float = attrs.field(kw_only=True, repr=False)
+    cross_sectional_area: float = attrs.field(kw_only=True, repr=False)  # TODO check this again
 
-            if self.distributed_load:
-                self.distributed_load.start = self.x
+    head = attrs.field(default=None, repr=False)
+    tail = attrs.field(default=None, repr=False)
+    size = attrs.field(default=0, repr=False)
 
-            if self.point_moment:
-                self.point_moment.x = self.x
-                self.point_moment.y = self.y
+    @modulus_of_elasticity.default
+    def _modulus_of_elasticity(self):
+        return self.MODULUS_OF_ELASTICITY
 
-            if self.support:
-                self.support.x = self.x
-                self.support.y = self.y
+    @thermal_expansion_alpha.default
+    def _thermal_expansion_alpha(self):
+        return self.THERMAL_EXPANSION_ALPHA
 
-        def __repr__(self) -> str:
-            return (
-                f"{self.__class__.__name__}(name={self.name}, x={self._x}, y={self._y})"
-            )
+    @moment_of_inertia.default
+    def _moment_of_inertia(self):
+        return self.MOMENT_OF_INERTIA
 
-        @property
-        def x(self):
-            return self._x
-
-        @x.setter
-        def x(self, val: float or int) -> None:
-            if val < 0:
-                raise ValueError("x cannot be negative")
-            self._x = val
-
-        @property
-        def y(self):
-            return self._y
-
-        @y.setter
-        def y(self, val: float or int):
-            if val < 0:
-                raise ValueError("y cannot be negative")
-            self._y = val
-
-    def __init__(
-            self,
-            length: float,
-            e: float or None = None,
-            alpha: float or None = None,
-            i: float or None = None,
-            cross_section: float or None = None,
-    ) -> None:
-        self.L = length
-        self._members: int or None = None
-        self._joints: int or None = None
-        self._number_of_vertical_reactions: int or None = None
-        self._number_of_horizontal_reactions: int or None = None
-        self._number_of_moments: int or None = None
-
-        if e is None:
-            self.modulus_of_elasticity = self.MODULUS_OF_ELASTICITY
-        else:
-            self.modulus_of_elasticity = e
-
-        if alpha is None:
-            self.thermal_expansion_alpha = self.THERMAL_EXPANSION_ALPHA
-        else:
-            self.thermal_expansion_alpha = alpha
-
-        if i is None:
-            self.moment_of_inertia = self.MOMENT_OF_INERTIA
-        else:
-            self.moment_of_inertia = i
-
-        if cross_section is None:
-            self.cross_sectional_area = self.CROSS_SECTIONAL_AREA
-        else:
-            self.cross_sectional_area = cross_section
-
-        self.head = None
-        self.tail = None
-        self._size: int = 0
-        # self.beam_information = {}
+    @cross_sectional_area.default
+    def _cross_sectional_area(self):
+        return self.CROSS_SECTIONAL_AREA
 
     def __len__(self) -> int:
         return self._size
 
     def __iter__(self):
-        return self.beam_iterator(self)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(length={self.L})"
+        return beam_iterator(self)
 
     @property
     def is_empty(self) -> bool:
-        return self._size == 0
+        return self.size == 0
 
     def reactions(self):
         pass
 
     @property
-    def members(self) -> int:
+    def length(self):
+        return self.tail.x - self.head.x
+
+    @property
+    def members(self):
         supports = tuple(self.get_supports())
 
         if len(supports) == 1:
             if supports[0].get_num_of_restraints() == 3:
-                self._members = 1
-                return self._members
+                return 1
 
-        self._members = len(supports) - 1
-        return self._members
+        return len(supports) - 1
 
     @property
     def joints(self) -> int:
@@ -463,11 +427,9 @@ class Beam:
 
         if len(supports) == 1:
             if supports[0].get_num_of_restraints() == 3:
-                self._joints = 1
-                return self._joints
+                return 1
 
-        self._joints = len(supports)
-        return self._joints
+        return len(supports)
 
     @property
     def number_of_vertical_reactions(self):
@@ -476,9 +438,7 @@ class Beam:
         for support in supports:
             num_of_vertical_rxn += support.get_vertical_reaction()
 
-        self._number_of_vertical_reactions = num_of_vertical_rxn
-
-        return self._number_of_vertical_reactions
+        return num_of_vertical_rxn
 
     @property
     def number_of_horizontal_reactions(self):
@@ -487,9 +447,7 @@ class Beam:
         for support in supports:
             num_of_horizontal_rxn += support.get_horizontal_reaction()
 
-        self._number_of_horizontal_reactions = num_of_horizontal_rxn
-
-        return self._number_of_horizontal_reactions
+        return num_of_horizontal_rxn
 
     @property
     def number_of_moments(self):
@@ -498,38 +456,77 @@ class Beam:
         for support in supports:
             num_of_moment += support.get_moment()
 
-        self._number_of_moments = num_of_moment
-
-        return self._number_of_moments
+        return num_of_moment
 
     def append_node(
             self,
-            name: str,
-            x: float,
+            name: str = '',
+            x: float = 0,
             y: float = 0.0,
             *,
             point_load: PointLoad or None = None,
             distributed_load: UniformlyDistributedLoad or None = None,
             point_moment: PointMoment or None = None,
             support: Any or None = None,
+            node=None
     ) -> None:
-        node = self.Node(
-            name=name,
-            x=x,
-            y=y,
-            next_=None,
-            point_load=point_load,
-            distributed_load=distributed_load,
-            point_moment=point_moment,
-            support=support,
-        )
+
+        if node is None:
+            node = Node(
+                name=name,
+                x=x,
+                y=y,
+                next_=None,
+                point_load=point_load,
+                distributed_load=distributed_load,
+                point_moment=point_moment,
+                support=support,
+            )
+        else:
+            node = node
+
         if self.is_empty:
             self.head = node
         else:
             self.tail.next_ = node
 
         self.tail = node
-        self._size += 1
+        self.size += 1
+        self.L = node.x
+
+    def remove_first_node(self):
+        if self.is_empty:
+            raise Exception
+
+        head = self.head
+        self.head = self.head.next_
+        self.size -= 1
+
+        if self.is_empty:
+            self.tail = None
+
+        return head
+
+    def remove_last_node(self):
+        if self.tail is None:
+            raise Exception
+
+        previous = None
+        head = self.head
+        tail = self.tail
+
+        while head.next_ is not None:
+            previous = head
+            head = head.next_
+
+        previous.next_ = None
+        self.tail = previous
+        self.size -= 1
+
+        if self.tail is None:
+            self.head = self.tail
+
+        return tail
 
     def is_geometrically_stable(self) -> bool:
         members = self.members
@@ -559,12 +556,14 @@ class Beam:
             return "indeterminate"
 
     def get_beam_information(self) -> MappingProxyType:
-        return MappingProxyType({
-            "point_loads": self.get_point_loads(),
-            "distributed_loads": self.get_distributed_loads(),
-            "point_moments": self.get_point_moments(),
-            "supports": self.get_supports(),
-        })
+        return MappingProxyType(
+            {
+                "point_loads": self.get_point_loads(),
+                "distributed_loads": self.get_distributed_loads(),
+                "point_moments": self.get_point_moments(),
+                "supports": self.get_supports(),
+            }
+        )
 
     def get_degree_of_ext_indeterminacy(self) -> int:
         r = self.get_total_support_reactions()

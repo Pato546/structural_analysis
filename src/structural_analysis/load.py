@@ -28,7 +28,7 @@ class PointLoad:
     )
 
     @horizontal_force.default
-    def h(self):
+    def _horizontal_force(self):
         return (
             0.0
             if math.isclose(
@@ -38,7 +38,7 @@ class PointLoad:
         )
 
     @vertical_force.default
-    def v(self):
+    def _vertical_force(self):
         return round(self.magnitude * math.sin(self.angle_of_inclination), 4)
 
 
@@ -67,7 +67,6 @@ class TrapezoidalLoad:
     pass
 
 
-# @functools.total_ordering
 @attrs.define(slots=True, order=True)
 class PointMoment:
     magnitude: int or float = attrs.field(
@@ -79,6 +78,13 @@ class PointMoment:
     y: int or float = attrs.field(
         init=False, validator=attrs.validators.ge(0), order=False
     )
+
+    def direction(self):
+        """Checks whether PointMoment is `Clockwise` or `AntiClockwise` """
+        # 1 - clockwise
+        # -1 - anticlockwise
+        return math.copysign(1, self.magnitude)
+        # return 1 if self.magnitude > 0 else -1
 
 
 if __name__ == "__main__":

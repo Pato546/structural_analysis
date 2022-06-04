@@ -1,130 +1,248 @@
 from pprint import pprint
+import operator
+from typing import Sequence
+from collections import deque, namedtuple
 
-from structural_analysis import UniformlyDistributedLoad, PointLoad, PointMoment
+import attrs
+
+from structural_analysis import (
+    UniformlyDistributedLoad,
+    PointLoad,
+    PointMoment,
+    HingeSupport,
+    RollerSupport,
+    Beam,
+)
+from structural_analysis.statically_determinate.solver import (
+    StaticallyDeterminateSolver,
+    display_results,
+)
+
+boundary = namedtuple("SupportBoundary", "lower_bound, upper_bound")
 
 
+def pair_elements(iterables: Sequence, num_of_pairs: int) -> Sequence:
+    _iterables = iterables
+    iterable_container = []
+
+    for idx, _ in enumerate(_iterables):
+
+        if idx == num_of_pairs:
+            break
+
+        iterable_pairs = []
+
+        idx_plus_1 = idx + 1
+        x1, x2 = _iterables[idx], _iterables[idx_plus_1]
+
+        iterable_pairs.append(_iterables[idx])
+        iterable_pairs.append(_iterables[idx_plus_1])
+
+        iterable_container.append(iterable_pairs)
+
+    return iterable_container
+
+
+@attrs.define(slots=True)
 class ThreeMomentSolver:
-    def __init__(self, beam):
-        self.beam = beam
-        self.beam_information: dict = beam.get_beam_information()
-        self.supports = tuple(self.beam_information["supports"])
-        self.point_loads = list(self.beam_information["point_loads"])
-        self.distributed_loads = list(self.beam_information["distributed_loads"])
-        self.point_moments = list(self.beam_information["point_moments"])
-
-        self.spans = self.get_sub_beams()
-
-    # def __repr__(self):
-    #     return f"{self.__class__.__name__}({repr(self.solve())})"
+    beam: Beam = attrs.field(validator=attrs.validators.instance_of(Beam))
+    supports = attrs.field(init=False)
+    point_loads = attrs.field(init=False)
+    distributed_loads = attrs.field(init=False)
+    point_moments = attrs.field(init=False)
 
     def create_sub_beams(self):
+        support_counter: int = 0
+        beam = Beam()
+        collection_of_sub_beams = []
 
-        sub_beams_container = []
+        for node in self.beam:
 
-        for idx in range(len(self.spans)):
-            if idx == len(self.spans) - 1:
-                break
-            sub_beams_pair = []
-            idx_plus_1 = idx + 1
-            sub_beams_pair.append(self.spans[idx])
-            sub_beams_pair.append(self.spans[idx_plus_1])
-            sub_beams_container.append(sub_beams_pair)
+            if node.has_support:
+                support_counter += 1
 
-        return sub_beams_container
+            if support_counter == 2:
+                # add node to beam
+                beam.append_node(
+                    name=node.name,
+                    x=node.x,
+                    y=node.y,
+                    point_load=node.point_load,
+                    distributed_load=node.distributed_load,
+                    point_moment=node.point_moment,
+                    support=node.support,
+                )
 
-    def get_sub_beams(self):
-        num_of_supports = len(self.supports)
-        num_of_spans = num_of_supports - 1
-        loads = self.point_loads + self.distributed_loads + self.point_moments
+                val = (
+                    beam,
+                    boundary(*[node.support.x for node in beam if node.has_support]),
+                )
 
-        support_container = []
+                # add beam to collection of sub beams
+                collection_of_sub_beams.append(val)
 
-        for idx in range(num_of_supports):
-            if idx == num_of_spans:
-                break
-            support_pairs = []
-            idx_plus_1 = idx + 1
-            support_pairs.append(self.supports[idx])
-            support_pairs.append(self.supports[idx_plus_1])
-
-            support_container.append(support_pairs)
-
-        for load in loads:
-            for supports in support_container:
-                if isinstance(load, UniformlyDistributedLoad):
-                    if supports[0].x <= load.start < supports[1].x:
-                        supports.append(load)
-                else:
-                    if supports[0].x <= load.x < supports[1].x:
-                        supports.append(load)
-
-        for elem in support_container:
-            elem.sort(
-                key=lambda e: e.start
-                if isinstance(e, UniformlyDistributedLoad)
-                else e.x
-            )
-
-        return support_container
-
-    def area_mul_centroid(self):
-        sub_beams = self.create_sub_beams()[0]
-        pprint(sub_beams)
-        areas_mul_centroid = []
-        length_of_spans = []
-
-        for idx, sub_beam in enumerate(sub_beams):
-            span = sub_beam
-
-            for el in span:
-                if isinstance(el, (PointLoad, UniformlyDistributedLoad, PointMoment)):
-
-                    if isinstance(el, PointLoad):
-                        a = span[0].x + el.x
-                        b = span[-1].x - el.x
-                        l = a + b  # span length
-
-                        length_of_spans.append(l)
-
-                        max_bending_moment = -1 * (el.vertical_force * a * b) / l
-
-                        if idx == 0:
-                            area_from_point_load_mul_centroid = (
-                                    1 / 2 * a * max_bending_moment * (2 / 3 * a)
-                                    + 1 / 2 * b * max_bending_moment * (a + 1 / 3 * b)
-                            )
-                        else:
-                            area_from_point_load_mul_centroid = (
-                                    1 / 2 * b * max_bending_moment * (2 / 3 * b)
-                                    + 1 / 2 * a * max_bending_moment * (b + 1 / 3 * a)
-                            )
-
-                        areas_mul_centroid.append(
-                            (area_from_point_load_mul_centroid, l)
+                if self.beam.members == len(collection_of_sub_beams):
+                    if node.next_ is not None:
+                        overhang_force = node.next_
+                        beam.append_node(
+                            name=overhang_force.name,
+                            x=overhang_force.x,
+                            y=overhang_force.y,
+                            point_load=overhang_force.point_load,
+                            distributed_load=overhang_force.distributed_load,
+                            point_moment=overhang_force.point_moment,
+                            support=overhang_force.support,
                         )
 
-                    elif isinstance(el, UniformlyDistributedLoad):
-                        end_node = (
-                                el.start + el.length
-                        )  # coordinate of the end node of udl
-                        if span[-1].x == end_node:
-                            l = span[-1].x - span[0].x
-                            length_of_spans.append(l)
-                            centroid = (1 / 2) * l
+                # create new Beam
+                beam = Beam()
 
-                            area_from_udl = (
-                                    2 / 3 * l * ((-1 * el.magnitude * pow(l, 2)) / 8)
-                            )
+                support_counter = 1
 
-                            area_from_udl_mul_centroid = area_from_udl * centroid
-                            areas_mul_centroid.append((area_from_udl_mul_centroid, l))
+            beam.append_node(
+                name=node.name,
+                x=node.x,
+                y=node.y,
+                point_load=node.point_load,
+                distributed_load=node.distributed_load,
+                point_moment=node.point_moment,
+                support=node.support,
+            )
 
-        print(areas_mul_centroid)
-        print(length_of_spans)
+        return collection_of_sub_beams
 
-        # Right-hand side of the three moment equation
-        rhs = -6 * sum(area_mul_centroid / l for area_mul_centroid, l in areas_mul_centroid)
+    def three_hinge_support_solver(self):
+        sub_beams = self.create_sub_beams()
 
-        r_moment = rhs / (2 * sum(length_of_spans))
+        beam_info = []
+        ma = 0
+        mc = 0
 
-        return r_moment
+        # external_support_moment = (ma, mb)
+
+        for idx, (sub_beam, bound) in enumerate(sub_beams):
+            for node in sub_beam:
+                for el in node.elements:
+                    if isinstance(
+                            el, (PointLoad, UniformlyDistributedLoad, PointMoment)
+                    ):
+                        if isinstance(el, PointLoad):
+                            if bound.lower_bound <= el.x < bound.upper_bound:
+                                a = el.x - bound.lower_bound
+                                b = bound.upper_bound - el.x
+                                l = a + b  # span length
+
+                                max_bending_moment = (
+                                        -1 * (el.vertical_force * a * b) / l
+                                )
+
+                                if idx == 0:
+                                    area_from_point_load_mul_centroid = (
+                                            1 / 2 * a * max_bending_moment * (2 / 3 * a)
+                                            + 1
+                                            / 2
+                                            * b
+                                            * max_bending_moment
+                                            * (a + 1 / 3 * b)
+                                    )
+                                else:
+                                    area_from_point_load_mul_centroid = (
+                                            1 / 2 * b * max_bending_moment * (2 / 3 * b)
+                                            + 1
+                                            / 2
+                                            * a
+                                            * max_bending_moment
+                                            * (b + 1 / 3 * a)
+                                    )
+                                beam_info.append((area_from_point_load_mul_centroid, l))
+
+                        elif isinstance(el, UniformlyDistributedLoad):
+                            if bound.lower_bound <= el.start < bound.upper_bound:
+                                end_node = (
+                                        el.start + el.length
+                                )  # coordinate of the end node of udl
+                                print((end_node, bound.upper_bound))
+                                if end_node == bound.upper_bound:
+                                    l = bound.upper_bound - bound.lower_bound
+                                    centroid = (1 / 2) * l
+
+                                    area_from_udl = (
+                                            2
+                                            / 3
+                                            * l
+                                            * ((-1 * el.magnitude * pow(l, 2)) / 8)
+                                    )
+
+                                    area_from_udl_mul_centroid = (
+                                            area_from_udl * centroid
+                                    )
+
+                                    beam_info.append((area_from_udl_mul_centroid, l))
+
+                        # Overhang
+                        # TODO check UDL overhang
+                        if isinstance(el, (PointLoad, PointMoment)):
+                            if idx == 0:
+                                if el.x < bound.lower_bound:
+                                    if isinstance(el, PointLoad):
+                                        moment_arm = bound.lower_bound - el.x
+                                        ma = el.vertical_force * moment_arm
+                                    elif isinstance(el, PointMoment):
+                                        ma = (
+                                            el.magnitude
+                                            if el.direction == -1
+                                            else el.magnitude * -1
+                                        )
+                            else:
+                                if el.x > bound.upper_bound:
+                                    if isinstance(el, PointLoad):
+                                        moment_arm = el.x - bound.upper_bound
+                                        mc = el.vertical_force * moment_arm
+                                    elif isinstance(el, PointMoment):
+                                        mc = (
+                                            el.magnitude * -1
+                                            if el.direction == -1
+                                            else el.magnitude * -1
+                                        )
+
+        (area1, l1), (area2, l2) = beam_info
+
+        total_length = l1 + l2
+        lhs = -1 * (ma * l1 + mc * l2)
+        rhs = -6 * (operator.truediv(area1, l1) + operator.truediv(area2, l2))
+
+        mb = (rhs + lhs) / (2 * total_length)
+        print(mb)
+
+        beams = [b for b, *_ in sub_beams]
+        moments = pair_elements((ma, mb, -1 * mc), 2)
+
+        for idx, (beam, _moments) in enumerate(zip(beams, moments)):
+            counter = 0
+            for node in beam:
+                if node.has_support:
+                    if idx == 0:
+                        if counter == 1:
+                            m = _moments[counter] * -1
+                            pm = PointMoment(magnitude=m)
+                            pm.x = node.x
+                            pm.y = node.y
+                            node.point_moment = pm
+                            continue
+                    pm = PointMoment(magnitude=_moments[counter])
+                    pm.x = node.x
+                    pm.y = node.y
+                    node.point_moment = pm
+                    counter += 1
+            if idx == 0:
+                if not beam.head.has_support:
+                    beam.remove_first_node()
+            if idx == 1:
+                if not beam.tail.has_support:
+                    beam.remove_last_node()
+        for b in beams:
+            for n in b:
+                print(n)
+            print('=========================================')
+            # b = StaticallyDeterminateSolver(beam=b, check_determinacy=False).solve()
+            # display_results(b)

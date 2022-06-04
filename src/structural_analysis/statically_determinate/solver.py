@@ -18,7 +18,8 @@ class StaticallyDeterminateSolver:
             # print("\u2713 Structure is determinate and Geometrically stable")
             pass
         else:
-            raise GeometricallyUnstableExternally("Structure is geometrically unstable")
+            # raise GeometricallyUnstableExternally("Structure is geometrically unstable")
+            pass
         if check_determinacy:
             if self.beam.classify_beam() == "determinate":
                 pass
@@ -112,8 +113,8 @@ class StaticallyDeterminateSolver:
         vertical_rxn_at_a, vertical_rxn_at_b, horizontal_rxn = (
             p + u + pm
             for p, u, pm in zip(
-                rxn_from_point_loads, rxn_from_distributed_loads, rxn_from_point_moments
-            )
+            rxn_from_point_loads, rxn_from_distributed_loads, rxn_from_point_moments
+        )
         )
 
         if isinstance(self.support_a, HingeSupport):
@@ -149,7 +150,7 @@ class StaticallyDeterminateSolver:
         horizontal_reaction_at_support = summation_horizontal_forces
 
         vertical_reaction_at_support = (
-            summation_of_vertical_forces + summation_of_distributed_loads
+                summation_of_vertical_forces + summation_of_distributed_loads
         )
 
         summation_of_moments_from_point_loads = sum(
@@ -167,9 +168,9 @@ class StaticallyDeterminateSolver:
         )
 
         moment_at_support = (
-            summation_of_moments_from_point_loads
-            + summation_of_moments_from_distributed_loads
-            + summation_of_moments_from_point_moments
+                summation_of_moments_from_point_loads
+                + summation_of_moments_from_distributed_loads
+                + summation_of_moments_from_point_moments
         )
 
         (
@@ -192,3 +193,58 @@ class StaticallyDeterminateSolver:
             return self._fixed_end_solver()
         else:
             return self._hinge_roller_solver()
+
+
+def display_results(solved_beam: Beam):
+    # TODO check RollerSupport direction
+
+    for node in solved_beam:
+        if node.support:
+            if isinstance(node.support, HingeSupport):
+                if node.support.vertical_force < 0:
+                    print(
+                        f"{node.name}y = {abs(node.support.vertical_force):.2f} \u2193"
+                    )
+                else:
+                    print(
+                        f"{node.name}y = {node.support.vertical_force:.2f} \u2191"
+                    )
+
+                if node.support.horizontal_force < 0:
+                    print(
+                        f"{node.name}x = {abs(node.support.horizontal_force):.2f} \u2190"
+                    )
+                else:
+                    print(
+                        f"{node.name}x = {node.support.horizontal_force:.2f} \u2192"
+                    )
+
+            elif isinstance(node.support, RollerSupport):
+                if node.support.force < 0:
+                    print(f"{node.name}y = {abs(node.support.force):.2f} \u2193")
+                else:
+                    print(f"{node.name}y = {node.support.force:.2f} \u2191")
+
+            else:
+                if node.support.moment < 0:
+                    print(f"{node.name}m = {abs(node.support.moment):.2f} \u21BA")
+                else:
+                    print(f"{node.name}m = {node.support.moment:.2f} \u21BB")
+
+                if node.support.vertical_force < 0:
+                    print(
+                        f"{node.name}y = {abs(node.support.vertical_force):.2f} \u2193"
+                    )
+                else:
+                    print(
+                        f"{node.name}y = {node.support.vertical_force:.2f} \u2191"
+                    )
+
+                if node.support.horizontal_force < 0:
+                    print(
+                        f"{node.name}x = {abs(node.support.horizontal_force):.2f} \u2190"
+                    )
+                else:
+                    print(
+                        f"{node.name}x = {node.support.horizontal_force:.2f} \u2192"
+                    )
