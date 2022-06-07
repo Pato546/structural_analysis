@@ -1,3 +1,4 @@
 sympy~=1.10.1
 setuptools~=60.8.1
 attrs~=21.4.0
+wxPython~=4.1.1
