@@ -51,3 +51,7 @@ MANIFEST
 # Per-project virtualenvs
 .venv*/
 .conda*/
+
+
+# Images Icons 
+src/gui/icons
